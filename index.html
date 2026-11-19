@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Pre-Start</title>
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#0b0b0b">
+<meta name="apple-mobile-web-app-title" content="Pre-Start">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+<style>
+/* Same look as the Site Diary: off-white logo bar with red rule, white cards on light grey, black bottom bar. */
+:root{
+  --bg:#f1f1ef; --surface:#ffffff; --ink:#0b0b0b; --muted:#666666; --line:#e1e1de;
+  --brand:#ff3131; --accent:#e42424; --accent-ink:#ffffff; --wip:#f4b400; --wip-ink:#0b0b0b;
+  --ok:#1f8a4c; --ok-ink:#ffffff; --warn:#b86e00; --crit:#c81e1e;
+  --display:"Poppins","Inter",system-ui,sans-serif; --body:"Inter",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#101010; --surface:#1b1b1b; --ink:#f4f4f2; --muted:#a3a3a0; --line:#2f2f2f;
+    --accent:#ff4a4a; --accent-ink:#0b0b0b; --ok:#4fc27f; --ok-ink:#0f2a1b; --warn:#f0b04a; --crit:#ff6b6b; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#101010; --surface:#1b1b1b; --ink:#f4f4f2; --muted:#a3a3a0; --line:#2f2f2f;
+  --accent:#ff4a4a; --accent-ink:#0b0b0b; --ok:#4fc27f; --ok-ink:#0f2a1b; --warn:#f0b04a; --crit:#ff6b6b; color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{max-width:100%;overflow-x:hidden}
+/* No pinch or double-tap zoom, no sideways sliding: the page only scrolls up and down. */
+html{touch-action:pan-y;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{overscroll-behavior-x:none}
+input,select,textarea,button{min-width:0;max-width:100%}
+.row>*,.card,main{min-width:0}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--body);padding-bottom:calc(92px + env(safe-area-inset-bottom))}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+button,input,select,textarea{font:inherit;color:inherit}
+/* 16px stops iPhone zooming in when you tap a box */
+input,select,textarea{font-size:16px}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+.top{width:100%;position:sticky;top:0;z-index:5;background:#f8f8f8;color:#0b0b0b;border-bottom:3px solid var(--brand);padding:8px 16px 10px;padding-top:max(8px,env(safe-area-inset-top));display:flex;flex-direction:column;gap:8px}
+.top .r1,.top .r2{display:flex;align-items:center;gap:8px;min-width:0}
+#logo{height:32px;width:auto;display:block}
+.tag{font:600 11px var(--display);letter-spacing:.12em;text-transform:uppercase;color:#666;margin-right:auto;padding-left:8px;border-left:2px solid #d8d8d6;line-height:1.2;white-space:nowrap}
+.top button{background:#ebebe9;border:0;border-radius:10px;color:#0b0b0b;min-height:42px;padding:0 14px;font-weight:600;cursor:pointer}
+.top .r2 button{width:42px;padding:0;font-size:20px;flex:none}
+.top .r2 button#date{flex:1 1 0;width:0;min-width:0;font-size:15px}
+.top .r2 button#histBtn{width:auto;padding:0 12px;font-size:14px;white-space:nowrap}
+.top button.on{background:var(--accent);color:#fff}
+
+main{max-width:560px;margin:0 auto;padding:16px;display:flex;flex-direction:column;gap:14px}
+.status{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:14px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--ok);flex:none}
+.dot.busy{background:var(--warn)}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 2px rgba(0,0,0,.04);padding:16px;display:flex;flex-direction:column;gap:12px}
+.card.risk{border-left:5px solid var(--brand)}
+.card h2,dialog h2{font:600 18px var(--display);letter-spacing:-.01em}
+.card h2::after,dialog h2::after{content:".";color:var(--brand)}
+.hero .h{font:700 26px var(--display);line-height:1.1}
+.hero .sub{color:var(--muted);font-size:14px;margin-top:2px}
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.tile{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;text-align:left;cursor:default;min-height:72px}
+.tile span{font-size:13px;color:var(--muted);font-weight:500}
+.tile b{font:700 30px var(--display);font-variant-numeric:tabular-nums;line-height:1.1}
+
+label{display:flex;flex-direction:column;gap:4px;font-size:14px;color:var(--muted);font-weight:500}
+input[type=text],input[type=email],input[type=password],input[type=search],select,textarea{
+  background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-height:44px;width:100%;color:var(--ink)}
+textarea{min-height:84px;resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.empty{color:var(--muted);font-size:14px}
+.ghost{background:transparent;border:1px dashed var(--muted);border-radius:8px;min-height:44px;cursor:pointer;font-weight:600}
+.del{background:none;border:0;color:var(--crit);cursor:pointer;font-weight:600;min-height:36px;padding:0 6px}
+.dl{display:flex;flex-direction:column;gap:6px}
+.dl .it{display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--bg);font-size:15px}
+.dl .it span{min-width:0;overflow-wrap:anywhere}
+
+.bar{position:fixed;left:50%;transform:translateX(-50%);width:100%;max-width:560px;bottom:0;z-index:6;background:#0b0b0b;padding:8px 10px;padding-bottom:max(8px,env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.bar button{background:#1f1f1f;border:0;border-radius:12px;color:#fff;min-height:56px;font-size:12px;font-weight:600;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer}
+.bar button svg{width:22px;height:22px;stroke:var(--brand);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#app.locked .card{opacity:.92}
+#app.locked input:disabled,#app.locked textarea:disabled{opacity:1;-webkit-text-fill-color:var(--ink);cursor:default}
+
+dialog{border:0;border-radius:12px;padding:0;background:var(--surface);color:var(--ink);width:min(94vw,560px)}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+#dlgIn:focus{outline:none}
+dialog .in{padding:16px;display:flex;flex-direction:column;gap:12px;max-height:88vh;max-height:88dvh;overflow:auto;overscroll-behavior:contain}
+dialog .in>.btns{position:sticky;bottom:-16px;background:var(--surface);padding:10px 0 16px;margin-bottom:-16px;border-top:1px solid var(--line)}
+dialog h2{font-size:20px}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.cal .h{text-align:center;font-size:12px;color:var(--muted);font-weight:600;padding:2px 0}
+.cal button,.cal .x{aspect-ratio:1;border-radius:10px;border:1px solid var(--line);background:var(--bg);font-weight:600;cursor:pointer;min-height:40px;font-variant-numeric:tabular-nums;padding:0}
+.cal .x{border:0;background:transparent;cursor:default}
+.cal button.done{background:var(--ok);border-color:var(--ok);color:var(--ok-ink)}
+.cal button.wip{background:var(--wip);border-color:var(--wip);color:var(--wip-ink)}
+.cal button.draft{border:2px dashed var(--muted)}
+.cal button.today{outline:2px solid var(--ink);outline-offset:1px}
+.cal button.cur{text-decoration:underline}
+.calnav{display:flex;align-items:center;gap:8px}
+.calnav b{flex:1;text-align:center;font:600 18px var(--display)}
+.calnav button{width:44px;height:44px;border-radius:8px;border:1px solid var(--line);background:var(--bg);font-size:20px;cursor:pointer}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px;border:1px solid var(--line)}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.btn{min-height:46px;padding:0 18px;border-radius:8px;border:1px solid var(--line);background:var(--bg);cursor:pointer;font-weight:600;color:var(--ink);text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.big{min-height:54px;font-size:16px;width:100%}
+.sev{display:flex;gap:8px}
+.sev button{flex:1;min-height:44px;border-radius:8px;border:2px solid var(--line);background:var(--bg);font-weight:600;cursor:pointer}
+.sev button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.err{flex-basis:100%;color:var(--crit);font-weight:600;font-size:15px}
+.err.ok{color:var(--ok);font-size:16px}
+.chk{display:flex;gap:12px;align-items:flex-start;font-size:15px;color:var(--ink);font-weight:400;flex-direction:row;cursor:pointer}
+.chk input{width:24px;height:24px;min-height:0;margin-top:2px;flex:none;accent-color:var(--accent)}
+.toast{position:fixed;left:50%;bottom:calc(100px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#0b0b0b;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:50;max-width:90vw;text-align:center}
+.toast.on{opacity:1}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* Login screen */
+#login{position:fixed;inset:0;z-index:30;background:var(--bg);overflow:auto;display:flex;flex-direction:column}
+#login .lg{max-width:420px;width:100%;margin:0 auto;padding:28px 16px;display:flex;flex-direction:column;gap:14px}
+#login h1{font:700 26px var(--display)}
+#login h1::after{content:".";color:var(--brand)}
+#login .sub{color:var(--muted);font-size:14px;margin-top:-8px}
+#login input{background:var(--surface)}
+#login .err{flex-basis:auto}
+body.auth #bar,body.auth #app{display:none}
+.acct{display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px solid var(--line);padding-top:12px;font-size:13px;color:var(--muted)}
+.acct span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Pre-start pieces */
+.kv{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.kv>div{padding:7px 10px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);min-width:0;display:flex;flex-direction:column}
+.kv>div:nth-child(2n){border-right:0}
+.kv>div.w{grid-column:1/-1;border-right:0}
+.kv>div:last-child{border-bottom:0}
+.kv span{font:600 11px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.kv b{font-weight:600;overflow-wrap:anywhere}
+.list{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:6px;overflow-wrap:anywhere}
+.note{font-style:italic;color:var(--muted);font-size:14px}
+.ans{display:inline-block;padding:1px 12px;border-radius:99px;font-weight:700;font-size:14px;border:1.5px solid currentColor}
+.ans.yes{color:var(--crit)}.ans.no{color:var(--ok)}
+.box3{display:flex;flex-direction:column;gap:10px}
+.box3 section{border:1px solid var(--line);border-left:4px solid var(--brand);border-radius:8px;padding:10px 12px;background:var(--bg)}
+.box3 h3{font:600 16px var(--display)}
+.box3 ol{margin:6px 0 0;padding-left:20px;font-size:14px;display:flex;flex-direction:column;gap:4px}
+.names{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow:auto;overscroll-behavior:contain}
+.names button{display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:50px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:var(--bg);text-align:left;cursor:pointer;font-weight:600;font-size:16px;color:var(--ink)}
+.names button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.names button:disabled{opacity:.5;cursor:default}
+.names small{font-weight:600;color:var(--ok);font-size:13px}
+.sig{position:relative;background:#fff;border:1px solid var(--line);border-radius:8px;height:190px;touch-action:none;user-select:none;-webkit-user-select:none}
+.sig canvas{width:100%;height:100%;display:block;touch-action:none;border-radius:8px}
+.sig .ph{position:absolute;left:14px;right:14px;bottom:34px;border-top:1.5px dashed #bdbdbd;pointer-events:none}
+.sig .ph::after{content:"Sign here with your finger";position:absolute;left:0;top:4px;color:#9a9a9a;font-size:13px}
+.sig.has .ph::after{content:""}
+.att{display:flex;flex-direction:column;gap:6px}
+.att .it{display:grid;grid-template-columns:76px minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--bg)}
+.att img{width:76px;height:38px;object-fit:contain;background:#fff;border-radius:4px;border:1px solid var(--line);display:block}
+.att .nm{font-weight:600;overflow-wrap:anywhere}
+.att small{color:var(--muted);font-variant-numeric:tabular-nums}
+.flag{display:inline-block;color:var(--warn);font-size:12px;font-weight:700;border:1px solid currentColor;border-radius:99px;padding:0 7px;margin-left:4px}
+.pub{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line);padding-top:12px}
+.donebox{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:10px 0}
+.done-ic{width:76px;height:76px;border-radius:50%;background:var(--ok);color:var(--ok-ink);display:grid;place-items:center;font:700 42px var(--display)}
+.donebox .h{font:700 26px var(--display)}
+.steps{font:600 12px var(--display);letter-spacing:.1em;text-transform:uppercase;color:var(--brand)}
+.qrv{position:fixed;inset:0;z-index:40;background:#fff;color:#0b0b0b;display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px;padding-top:max(16px,env(safe-area-inset-top));overflow:auto;text-align:center}
+.qrv img.lg{height:30px;width:auto}
+.qrv h2{font:700 22px var(--display)}.qrv h2::after{content:".";color:#ff3131}
+.qrv .q{width:min(88vw,58vh);max-width:520px}
+.qrv .q svg{width:100%;height:auto;display:block}
+.qrv .s{color:#555;font-size:15px}
+.qrv .btns{justify-content:center}
+.qrv .btn{background:#f1f1ef;border-color:#e1e1de;color:#0b0b0b}
+.qrv .btn.primary{background:#e42424;border-color:#e42424;color:#fff}
+body.worker{padding-bottom:28px}
+body.worker #bar,body.worker .top .r2,body.worker #pdfBtn{display:none!important}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="r1">
+    <img id="logo" alt="Transform Group" width="154" height="32"><span class="tag">Pre-start</span>
+    <button id="pdfBtn" class="on" hidden>PDF</button>
+  </div>
+  <div class="r2" hidden>
+    <button id="prev" aria-label="Previous day">&lsaquo;</button>
+    <button type="button" id="date" aria-label="Choose a day"></button>
+    <button id="next" aria-label="Next day">&rsaquo;</button>
+    <button id="histBtn">All days</button>
+  </div>
+</header>
+
+<main id="app"></main>
+
+<nav class="bar" id="bar" aria-label="Actions" hidden>
+  <button data-act="qr"><svg viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 18h2v2h-2zM14 18h2M18 14h2"/></svg>QR code</button>
+  <button data-act="att"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg>Attendance</button>
+  <button data-act="people"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.3-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 14.8c1.6.8 2.6 2.5 3 5.2"/></svg>People</button>
+  <button data-act="complete"><svg viewBox="0 0 24 24"><path d="M3 17c3-4 5-4 6-1s3 3 5-1 4-3 7 1"/><path d="M3 21h18"/></svg>Complete</button>
+</nav>
+
+<section id="login" hidden aria-labelledby="lgT">
+  <header class="top" style="position:static"><div class="r1"><img id="logo2" alt="Transform Group" width="154" height="32" style="height:32px;width:auto"><span class="tag">Pre-start</span></div></header>
+  <form class="lg" id="lgForm" novalidate>
+    <h1 id="lgT">Log in</h1>
+    <div class="sub">Supervisor login. Workers don't need to log in: they scan the QR code.</div>
+    <label>Email<input type="email" id="lgEmail" autocomplete="username" inputmode="email" autocapitalize="off" spellcheck="false" required></label>
+    <label>Password<input type="password" id="lgPw" autocomplete="current-password" required></label>
+    <div id="lgErr" class="err" role="alert" hidden></div>
+    <button class="btn primary" id="lgBtn" type="submit" style="min-height:52px;font-size:16px">Log in</button>
+    <button class="btn" id="lgForgot" type="button">Forgot password</button>
+  </form>
+</section>
+
+<dialog id="dlg"><div class="in" id="dlgIn" tabindex="-1" autofocus></div></dialog>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="lib/jspdf.umd.min.js"></script>
+<script src="lib/supabase.js"></script>
+<script src="lib/qrcode.js"></script>
+<script>
+const LOGO="data:image/png;base64,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";
+const LOGO_R=66/318; // height / width of the logo image
+document.getElementById("logo").src=LOGO;document.getElementById("logo2").src=LOGO;
+
+/* ---------- the template's fixed text (TF Group Pre-start REV 2) ---------- */
+const ACK_TEXT="By signing this document, I acknowledge that I have read and understood the works to be undertaken, the hazards and risks involved, and the control measures implemented for the task. I confirm that I have had the opportunity to raise any concerns, ask questions, or identify additional hazards prior to commencing works, and accept the control measures, methodologies, and safe systems of work communicated during this prestart.";
+const SWMS_NOTE="NOTE: If this requires a change to the SWMS, then please ensure this is captured and relevant workers inducted";
+const BOXES=[
+ {t:"I know the hazard",items:[
+  "You have been involved in the task analysis and understand the hazard and risk control hazards associated with each task that you perform",
+  "You are aware that no task or work is to be performed without a risk assessment / SWMS or procedure in place",
+  "You are aware of your obligation to stop work if you see something that is not safe or is instructed to perform an activity in which you have not been trained in or have the competency or training to perform"]},
+ {t:"I arrived and departed for duty",items:[
+  "You are trained and experienced to complete the works assigned to you",
+  "You are mentally and physically fit for work",
+  "You are not under the influence of any type of medication, drugs, or alcohol that could affect your ability to work safely",
+  "It has been explained to me that I must report all injuries or accidents to Transform on the day these occur"]},
+ {t:"Stop Work",items:[
+  "I will STOP work and notify the supervisors if I am not trained and experienced to complete the work I am assigned to",
+  "I will STOP work if at any time I or anyone else that may be affected identifies a hazard that has not been mitigated",
+  "I will be alerted to any changes in personal condition at the work site or a hazard not previously identified by the original risk assessment"]}
+];
+const DEF_HAZARDS=[
+ "No parking on site. Hindmarsh encourages public transport and carpooling where possible. Public transport routes are available in the sheds, on the notice board and in the induction room.",
+ "Heavy machinery: Be careful around excavators and other plant moving about site. Obey the spotter or traffic controller when walking nearby.",
+ "Deep excavations: Be careful of deep excavations. Keep clear of open edges."].join("\n");
+const DEF_NOTES=[
+ "Workers must be appropriately trained, competent, and experienced to undertake the works assigned to them. Any person unsure of a task or lacking the required competency must stop work and notify supervision immediately.",
+ "Workers requiring translation or assistance to understand site instructions, SWMS, hazards, or control measures must notify supervision prior to commencing work.",
+ "Changes to site conditions, access, sequencing, weather, or adjacent trades are to be reported immediately. Works must stop if conditions differ from the approved SWMS, drawings, or methodology.",
+ "Only current approved drawings and instructions are to be used. Do not proceed where information is unclear, incomplete, or unavailable.",
+ "No modification, removal, relocation, or overloading of formwork, temporary works, edge protection, screens, braces, or props without approval.",
+ "Exclusion zones are to be maintained during lifting, stripping, and other high-risk activities. No personnel are permitted beneath overhead works unless appropriate controls are in place.",
+ "Operators must hold the required licences/tickets and conduct pre-start inspections. Defective tools, lifting gear, or equipment must be tagged out and reported immediately.",
+ "All incidents, near misses, hazards, damaged equipment, and property damage must be reported immediately.",
+ "Workers must be fit for work and notify supervision if affected by fatigue, medication, drugs, alcohol, illness, or any condition that may impact their ability to work safely."].join("\n");
+const FOOTER="OHSE 13 - Daily Prestart - Rev 2";
+const DEF_SETTINGS={project:"Greenwich Hospital",site_address:"97-115 River Rd Greenwich",work_location:"SLN",building:"SLN",level:"",leader:"",hazards:DEF_HAZARDS,notes:DEF_NOTES,builder_email:""};
+
+/* ---------- Supabase connection. The publishable key is safe in the browser: tables are owner-only (RLS);
+   workers can only call get_prestart and sign_prestart, which check today's QR code. ---------- */
+const APP_VERSION="v1";
+const SB_URL="__SB_URL__";
+const SB_KEY="__SB_KEY__";
+const AUTH_KEY="sitePrestart.auth",LSC="sitePrestart.cache.v1",LSQ="sitePrestart.outbox.v1",LSG="sitePrestart.geo";
+let sb=null;
+try{sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:AUTH_KEY}})}catch(e){console.error(e)}
+
+/* ---------- small helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const TZ="Australia/Sydney";
+const sydToday=()=>new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+const shift=(s,n)=>{const d=new Date(s+"T12:00:00Z");d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)};
+const nice=s=>new Date(s+"T12:00:00").toLocaleDateString("en-AU",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+const shortDay=s=>new Date(s+"T12:00:00").toLocaleDateString("en-AU",{weekday:"short",day:"numeric",month:"short"});
+const dmy=s=>s?`${s.slice(8,10)}/${s.slice(5,7)}/${s.slice(0,4)}`:"";
+const fmtTime=t=>t?new Date(t).toLocaleTimeString("en-AU",{hour:"numeric",minute:"2-digit",timeZone:TZ}):"";
+const lines=t=>String(t||"").split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+const clone=o=>JSON.parse(JSON.stringify(o));
+const online=()=>navigator.onLine!==false;
+const isDate=s=>/^\d{4}-\d{2}-\d{2}$/.test(s);
+const WORKER_RE=/^(\d{4}-\d{2}-\d{2})-([A-Za-z0-9]{8,64})$/;
+
+function toast(t){const dl=$("#dlg"),er=$("#serr");if(dl&&dl.open&&er){er.classList.remove("ok");er.textContent=t;er.hidden=false;try{er.scrollIntoView({block:"nearest"})}catch(x){}return}
+  const e=$("#toast");e.textContent=t;e.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("on"),2800)}
+function okMsg(t){const er=$("#serr");if(er){er.classList.add("ok");er.textContent=t;er.hidden=false}}
+
+/* ---------- dialog helper (same as the diary) ---------- */
+function sheet(title,body,okLabel,onOk,onMount){
+  $("#dlgIn").innerHTML=`${title?`<h2>${esc(title)}</h2>`:""}<div id="sb" style="display:flex;flex-direction:column;gap:12px">${body}</div>
+    <div class="btns"><div id="serr" class="err" role="alert" hidden></div>${okLabel?`<button class="btn primary" id="sok">${esc(okLabel)}</button>`:""}<button class="btn" id="scl">${okLabel?"Cancel":"Close"}</button></div>`;
+  $("#scl").onclick=()=>$("#dlg").close();
+  $("#dlgIn").oninput=()=>{const x=$("#serr");if(x)x.hidden=true};
+  $("#dlgIn").onfocusin=e=>{if(e.target.matches("input,textarea,select"))setTimeout(()=>{try{e.target.scrollIntoView({block:"center",behavior:"smooth"})}catch(x){}},350)};
+  if(okLabel)$("#sok").onclick=async()=>{const b=$("#sok");if(b.disabled)return;b.disabled=true;let r;try{r=onOk&&await onOk($("#sb"))}catch(e){toast("Something went wrong: "+(e&&e.message||e));b.disabled=false;return}
+    b.disabled=false;if(r!==false)$("#dlg").close()};
+  if(!$("#dlg").open)$("#dlg").showModal();
+  try{const a=document.activeElement;if(a&&a!==$("#dlgIn")&&a.matches("select,input,textarea"))a.blur();$("#dlgIn").focus({preventScroll:true})}catch(e){}
+  onMount&&onMount($("#sb"));
+}
+
+/* ---------- finger signature pad ---------- */
+function sigPad(wrap){
+  const cv=wrap.querySelector("canvas"),ctx=cv.getContext("2d");let strokes=[],st=null,dpr=1;
+  const style=()=>{ctx.lineWidth=2.6*dpr;ctx.lineCap="round";ctx.lineJoin="round";ctx.strokeStyle="#0b0b0b";ctx.fillStyle="#0b0b0b"};
+  const seg=(a,b)=>{ctx.beginPath();ctx.moveTo(a[0]*dpr,a[1]*dpr);ctx.lineTo(b[0]*dpr,b[1]*dpr);ctx.stroke()};
+  const dot=p=>{ctx.beginPath();ctx.arc(p[0]*dpr,p[1]*dpr,1.3*dpr,0,7);ctx.fill()};
+  const redraw=()=>{ctx.clearRect(0,0,cv.width,cv.height);style();strokes.forEach(s=>{dot(s[0]);for(let i=1;i<s.length;i++)seg(s[i-1],s[i])})};
+  const size=()=>{const b=cv.getBoundingClientRect();if(!b.width)return;dpr=window.devicePixelRatio||1;cv.width=Math.round(b.width*dpr);cv.height=Math.round(b.height*dpr);redraw()};
+  const pt=e=>{const b=cv.getBoundingClientRect();return[e.clientX-b.left,e.clientY-b.top]};
+  cv.addEventListener("pointerdown",e=>{e.preventDefault();try{cv.setPointerCapture(e.pointerId)}catch(x){}st=[pt(e)];strokes.push(st);style();dot(st[0]);wrap.classList.add("has");wrap.dispatchEvent(new Event("sig"))});
+  cv.addEventListener("pointermove",e=>{if(!st)return;e.preventDefault();const evs=e.getCoalescedEvents?e.getCoalescedEvents():[e];
+    for(const ev of (evs.length?evs:[e])){const p=pt(ev);seg(st[st.length-1],p);st.push(p)}});
+  const end=()=>{st=null};cv.addEventListener("pointerup",end);cv.addEventListener("pointercancel",end);cv.addEventListener("lostpointercapture",end);
+  size();const ro=window.ResizeObserver?new ResizeObserver(()=>size()):null;if(ro)ro.observe(cv);
+  const ink=()=>{let n=0;strokes.forEach(s=>{for(let i=1;i<s.length;i++)n+=Math.hypot(s[i][0]-s[i-1][0],s[i][1]-s[i-1][1])});return n};
+  return{
+    clear(){strokes=[];redraw();wrap.classList.remove("has")},
+    empty(){return ink()<25},
+    png(maxW=420,maxH=150){ // trimmed to the ink, small file (usually 4-15 KB)
+      let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;strokes.forEach(s=>s.forEach(p=>{x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1]);x1=Math.max(x1,p[0]);y1=Math.max(y1,p[1])}));
+      const pad=5;x0-=pad;y0-=pad;x1+=pad;y1+=pad;const bw=Math.max(1,x1-x0),bh=Math.max(1,y1-y0);
+      for(let k=1;k>.2;k*=.7){
+        const s=Math.min(maxW/bw,maxH/bh,2)*k,o=document.createElement("canvas");o.width=Math.ceil(bw*s);o.height=Math.ceil(bh*s);
+        const c=o.getContext("2d");c.lineWidth=Math.max(1.6,Math.min(5,2.6*s));c.lineCap="round";c.lineJoin="round";c.strokeStyle="#000";c.fillStyle="#000";
+        strokes.forEach(st=>{c.beginPath();c.arc((st[0][0]-x0)*s,(st[0][1]-y0)*s,c.lineWidth/2,0,7);c.fill();c.beginPath();c.moveTo((st[0][0]-x0)*s,(st[0][1]-y0)*s);
+          for(let i=1;i<st.length;i++)c.lineTo((st[i][0]-x0)*s,(st[i][1]-y0)*s);c.stroke()});
+        const url=o.toDataURL("image/png");if(url.length<120000)return url}
+      return null}
+  };
+}
+const padHTML=id=>`<div class="sig" id="${id}"><canvas></canvas><div class="ph"></div></div><div class="btns" style="justify-content:flex-end"><button type="button" class="btn" data-clear="${id}" style="min-height:40px">Clear signature</button></div>`;
+
+/* ---------- QR code ---------- */
+function qrMatrix(text){const q=qrcode(0,"M");q.addData(text);q.make();const n=q.getModuleCount(),m=[];for(let r=0;r<n;r++){m.push([]);for(let c=0;c<n;c++)m[r].push(q.isDark(r,c))}return m}
+function qrSVG(text){const m=qrMatrix(text),n=m.length,b=4;let d="";m.forEach((row,r)=>row.forEach((on,c)=>{if(on)d+=`M${c+b} ${r+b}h1v1h-1z`}));
+  return `<svg viewBox="0 0 ${n+2*b} ${n+2*b}" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" role="img" aria-label="QR code"><rect width="100%" height="100%" fill="#fff"/><path d="${d}" fill="#000"/></svg>`}
+const appURL=()=>location.origin+location.pathname.replace(/index\.html$/,"");
+const qrLink=r=>`${appURL()}#${r.day}-${r.token}`;
+function newToken(){const A="ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789",b=new Uint32Array(12);crypto.getRandomValues(b);return Array.from(b,x=>A[x%A.length]).join("")}
+
+/* ---------- PDF (jsPDF), laid out like TF Group Pre-start REV 2 ---------- */
+const pdfClean=s=>String(s==null?"":s).replace(/[‘’]/g,"'").replace(/[“”]/g,'"').replace(/[–—]/g,"-").replace(/…/g,"...").replace(/[^\x09\x0A\x0D\x20-\x7E\xA0-\xFF]/g,"");
+const imgSize=src=>new Promise(res=>{const i=new Image();i.onload=()=>res([i.naturalWidth||1,i.naturalHeight||1]);i.onerror=()=>res(null);i.src=src});
+function pdfKit(){
+  const doc=new window.jspdf.jsPDF({unit:"mm",format:"a4"}),W=210,M=12,CW=W-2*M,BOT=281,GREY=[217,217,217];
+  const k={doc,W,M,CW,BOT,y:M};
+  k.font=(st,sz)=>{doc.setFont("helvetica",st);doc.setFontSize(sz)};
+  k.lh=sz=>sz*.3528*1.22;
+  k.header=()=>{
+    try{doc.addImage(LOGO,"PNG",M,k.y+1,46,46*LOGO_R)}catch(e){k.font("bold",16);doc.text("transform.",M,k.y+8)}
+    const bw=78,bx=W-M-bw;doc.setDrawColor(0);doc.setLineWidth(.5);doc.rect(bx,k.y,bw,12);k.font("bold",13);doc.setTextColor(0);doc.text("DAILY PRE-START MEETING",bx+bw/2,k.y+7.9,{align:"center"});
+    doc.setLineWidth(.25);k.y+=17};
+  k.newPage=()=>{doc.addPage();k.y=M;k.header()};
+  k.ensure=h=>{if(k.y+h>BOT){k.newPage();return true}return false};
+  k.cellLines=(c,w)=>{if(c.text==null||c.img)return[];k.font(c.bold?"bold":c.italic?"italic":"normal",c.size||8.5);return doc.splitTextToSize(pdfClean(c.text),w-3)};
+  /* a table row: cells=[{w,text,fill,bold,italic,align,size,img,draw}] */
+  k.row=(cells,minH=6.5,opt={})=>{
+    let h=minH;cells.forEach(c=>{const L=k.cellLines(c,c.w);h=Math.max(h,L.length*k.lh(c.size||8.5)+2.6)});
+    if(k.ensure(h)&&opt.onBreak)opt.onBreak();
+    let x=M;cells.forEach(c=>{
+      doc.setDrawColor(0);doc.setLineWidth(.25);
+      if(c.fill){doc.setFillColor(...c.fill);doc.rect(x,k.y,c.w,h,"FD")}else doc.rect(x,k.y,c.w,h);
+      const L=k.cellLines(c,c.w),sz=c.size||8.5,lh=k.lh(sz);doc.setTextColor(...(c.color||[0,0,0]));
+      const ty=k.y+(h-L.length*lh)/2+lh*.78;
+      L.forEach((l,i)=>doc.text(l,c.align==="center"?x+c.w/2:x+1.6,ty+i*lh,{align:c.align==="center"?"center":"left"}));
+      if(c.img&&c.img.src){const [iw,ih]=c.img.size||[3,1],mw=c.w-2,mh=h-1.4,s=Math.min(mw/iw,mh/ih);try{doc.addImage(c.img.src,"PNG",x+1+(mw-iw*s)/2,k.y+.7+(mh-ih*s)/2,iw*s,ih*s)}catch(e){}}
+      if(c.draw)c.draw(x,k.y,c.w,h);
+      x+=c.w});
+    doc.setTextColor(0);k.y+=h;return h};
+  k.footer=()=>{const n=doc.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);k.font("normal",8);doc.setTextColor(60);doc.text(FOOTER,M,291);doc.text(`Page | ${i}`,W-M,291,{align:"right"})}doc.setTextColor(0)};
+  k.box=(x,y,on)=>{doc.setLineWidth(.3);doc.rect(x,y,3.2,3.2);if(on){doc.setLineWidth(.45);doc.line(x+.6,y+.6,x+2.6,y+2.6);doc.line(x+2.6,y+.6,x+.6,y+2.6)}doc.setLineWidth(.25)};
+  k.GREY=GREY;return k;
+}
+async function buildPDF(r,sigs){
+  if(!window.jspdf)throw new Error("The PDF tool didn't load. Reload the app.");
+  const k=pdfKit(),{doc,M,CW}=k,G=k.GREY;k.header();
+  // Opening acknowledgement paragraph
+  k.font("normal",8.5);const P=doc.splitTextToSize(pdfClean(ACK_TEXT),CW);doc.text(P,M,k.y+3);k.y+=P.length*k.lh(8.5)+4;
+  // Header info table
+  const L=(t,w)=>({w,text:t,fill:G,bold:true,size:8});
+  k.row([L("PROJECT TITLE:",30),{w:63,text:r.project},L("DATE:",30),{w:63,text:dmy(r.day)}],7);
+  k.row([L("SITE ADDRESS:",30),{w:63,text:r.site_address},L("WEATHER FORECAST:",30),{w:63,text:r.weather}],7);
+  k.row([L("WORK LOCATION:",30),{w:32,text:r.work_location},L("BUILDING:",24),{w:38,text:r.building},L("LEVEL:",22),{w:40,text:r.level}],7);
+  k.row([L("SUPERVISOR / PERSON LEADING MEETING:",70),{w:116,text:r.leader}],7);
+  k.y+=4;
+  // Issues
+  k.row([{w:144,text:"ANY ISSUES ARISING FROM PREVIOUS DAY? If YES please state",fill:G,bold:true,size:8},{w:42,fill:G,draw:(x,y,w,h)=>{
+    const cy=y+h/2-1.6;k.box(x+5,cy,r.issues===true);k.font("bold",8);doc.text("YES",x+9.6,cy+2.7);k.box(x+22,cy,r.issues===false);doc.text("NO",x+26.6,cy+2.7)}}],7);
+  const iss=lines(r.issues_details);for(let i=0;i<Math.max(3,iss.length);i++)k.row([{w:CW,text:iss[i]||""}],6);
+  k.font("italic",8);k.ensure(6);doc.text(pdfClean(SWMS_NOTE),M,k.y+4);k.y+=7;
+  // Planned work
+  const listBlock=(title,items,min)=>{const hdr=()=>k.row([{w:CW,text:title,fill:G,bold:true,align:"center",size:8.5}],7);
+    k.ensure(7+6.5*Math.min(2,Math.max(min,items.length)));hdr();
+    for(let i=0;i<Math.max(min,items.length);i++)k.row([{w:CW,text:items[i]||""}],6.5,{onBreak:hdr});k.y+=4};
+  listBlock("PLANNED WORK ACTIVITIES / TASKS TO BE CARRIED OUT TODAY",lines(r.planned),5);
+  listBlock("HAZARDS & CONTROL MEASURES",lines(r.hazards),7);
+  // Acknowledgement three boxes
+  const cw=CW/3;k.font("normal",7.6);
+  const colH=BOXES.map(b=>b.items.reduce((a,t,i)=>a+doc.splitTextToSize(`${i+1}. ${t}`,cw-3).length*k.lh(7.6)+.8,0)+2);
+  k.ensure(7+6+Math.max(...colH));
+  k.row([{w:CW,fill:G,draw:(x,y,w,h)=>{k.font("bold",8.5);doc.text("Acknowledgment",x+w/2,y+3.6,{align:"center"});k.font("normal",8);doc.text("By signing you are stating that",x+w/2,y+7.2,{align:"center"})}}],9);
+  k.row(BOXES.map(b=>({w:cw,text:b.t,bold:true,align:"center",size:8.5})),6);
+  k.row(BOXES.map((b,j)=>({w:cw,draw:(x,y)=>{k.font("normal",7.6);let yy=y+3;b.items.forEach((t,i)=>{const T=doc.splitTextToSize(`${i+1}. ${pdfClean(t)}`,cw-3);doc.text(T,x+1.5,yy);yy+=T.length*k.lh(7.6)+.8})}})),Math.max(...colH));
+  k.y+=4;
+  // Other notes
+  const notes=lines(r.notes);const nh=()=>k.row([{w:CW,text:"OTHER NOTES",fill:G,bold:true,align:"center",size:8.5}],7);
+  k.ensure(20);nh();notes.forEach(n=>k.row([{w:6,text:"•",align:"center"},{w:CW-6,text:n,size:8}],5.5,{onBreak:nh}));if(!notes.length)k.row([{w:CW,text:""}],6);
+  k.y+=4;
+  // Attendance: two people per row
+  const S=await Promise.all((sigs||[]).map(async s=>({...s,size:await imgSize(s.signature)})));
+  const rows=Math.max(34,Math.ceil(S.length/2)),aw=CW/4;
+  const ah=()=>{k.row([{w:CW,text:"Attendance",fill:G,bold:true,align:"center",size:9}],7);k.row(["Print Name","Signature","Print Name","Signature"].map(t=>({w:aw,text:t,fill:G,bold:true,align:"center",size:8})),6)};
+  k.ensure(13+9*3);ah();
+  const person=s=>s?{w:aw,draw:(x,y,w,h)=>{k.font("normal",8.5);const T=doc.splitTextToSize(pdfClean(s.name),w-3).slice(0,2);doc.text(T,x+1.6,y+3.6);
+      k.font("normal",6.5);doc.setTextColor(110);doc.text(fmtTime(s.signed_at),x+w-1.4,y+h-1.2,{align:"right"});doc.setTextColor(0)}}:{w:aw};
+  const sig=s=>s?{w:aw,img:{src:s.signature,size:s.size}}:{w:aw};
+  for(let i=0;i<rows;i++){const a=S[2*i],b=S[2*i+1];k.row([person(a),sig(a),person(b),sig(b)],9,{onBreak:ah})}
+  k.y+=3;
+  // Supervisor sign-off
+  let ss=null;if(r.supervisor_signature)ss={src:r.supervisor_signature,size:await imgSize(r.supervisor_signature)};
+  k.row([{w:58,text:"SITE SUPERVISOR/PERSON RESPONSIBLE:",fill:G,bold:true,size:8},{w:56,text:r.supervisor_name||""},{w:22,text:"Signature:",fill:G,bold:true,size:8},{w:50,img:ss}],14);
+  if(r.completed_at){k.font("normal",7);doc.setTextColor(110);doc.text(`Signed off ${dmy(r.day)} at ${fmtTime(r.completed_at)}`,k.W-M,k.y+3.5,{align:"right"});doc.setTextColor(0)}
+  k.footer();
+  return doc.output("blob");
+}
+async function buildQrPDF(r){
+  const k=pdfKit(),{doc,W,M,CW}=k;k.header();
+  k.font("bold",24);doc.text(pdfClean(r.project||"Daily pre-start"),W/2,k.y+12,{align:"center"});
+  k.font("normal",13);doc.text(pdfClean([r.site_address,[r.work_location,r.building,r.level].filter(Boolean).join(" / ")].filter(Boolean).join("  ·  ")),W/2,k.y+20,{align:"center",maxWidth:CW});
+  k.font("bold",16);doc.text(nice(r.day),W/2,k.y+31,{align:"center"});
+  const m=qrMatrix(qrLink(r)),n=m.length,size=140,cell=size/(n+8),x0=(W-size)/2,y0=k.y+38;
+  doc.setFillColor(0);m.forEach((row,ri)=>row.forEach((on,ci)=>{if(on)doc.rect(x0+(ci+4)*cell,y0+(ri+4)*cell,cell+.02,cell+.02,"F")}));
+  k.y=y0+size+6;
+  k.font("bold",17);doc.text("Scan with your phone camera to sign today's pre-start",W/2,k.y+2,{align:"center",maxWidth:CW});
+  k.font("normal",12);doc.setTextColor(80);doc.text(`This code only works on ${nice(r.day)}.`,W/2,k.y+11,{align:"center"});
+  k.font("normal",8);doc.text(qrLink(r),W/2,k.y+20,{align:"center",maxWidth:CW});doc.setTextColor(0);
+  k.footer();return doc.output("blob");
+}
+const pdfName=(r,what)=>`${what||"Pre-start"} ${dmy(r.day).replace(/\//g,"-")} ${pdfClean(r.project||"").replace(/[\\\/:*?"<>|]+/g,"").trim()}`.trim()+".pdf";
+let fileURL=null;
+function fileButtons(mm,blob,fn,{emailTo,subject}={}){
+  if(fileURL)URL.revokeObjectURL(fileURL);fileURL=URL.createObjectURL(blob);
+  let file=null;try{file=new File([blob],fn,{type:"application/pdf"})}catch(e){}
+  let canShare=false;try{canShare=!!(file&&navigator.canShare&&navigator.canShare({files:[file]}))}catch(e){}
+  mm.innerHTML=`<div style="display:flex;flex-direction:column;gap:8px"><b>PDF ready: ${esc(fn)}</b>
+    <div class="btns"><button class="btn primary" id="fShare" type="button">${canShare?"Share / email":"Email"}</button>
+    <a class="btn" id="fOpen" href="${fileURL}" download="${esc(fn)}" target="_blank" rel="noopener">Download PDF</a></div>
+    ${emailTo!==undefined?`<div class="empty">${emailTo?`Builder's email: <b>${esc(emailTo)}</b>${canShare?" (copied when you tap Share, paste it in the To box)":""}`:`No builder email saved yet. Add it in <b>All days → Settings</b>.`}</div>`:""}</div>`;
+  mm.querySelector("#fShare").onclick=async()=>{
+    if(canShare){
+      if(emailTo){try{await navigator.clipboard.writeText(emailTo)}catch(e){}}
+      try{await navigator.share({files:[file],title:fn,text:subject||fn})}catch(e){if(e&&e.name!=="AbortError")toast("Sharing didn't work. Use Download PDF instead.")}
+    }else{ // no file sharing on this device: download the PDF, then open an email to attach it to
+      mm.querySelector("#fOpen").click();
+      if(emailTo!==undefined)setTimeout(()=>{location.href=`mailto:${encodeURIComponent(emailTo||"")}?subject=${encodeURIComponent(subject||fn)}&body=${encodeURIComponent("Please find attached: "+fn+"\n(The PDF has been downloaded. Attach it to this email.)")}`},600);
+    }};
+}
+
+/* ======================================================================
+   WORKER MODE: #yyyy-mm-dd-token (no login)
+   ====================================================================== */
+const W={day:"",token:"",d:null,pick:null,typed:false,pad:null,ack:false};
+const WERR={invalid:"This QR code doesn't work today. Ask your supervisor for today's QR code: there's a new one every day.",
+  expired:"This QR code doesn't work today. Ask your supervisor for today's QR code: there's a new one every day.",
+  locked:"Too many tries from this phone. Wait 15 minutes, then scan the QR code again.",
+  closed:"Today's pre-start has already been signed off by the supervisor. Speak to your supervisor.",
+  signature:"Your signature didn't come through. Clear it and sign again.",
+  name:"Type your full name.",person:"That name was just removed from the list. Pick your name again, or type it.",
+  full:"The sign-in sheet is full. Speak to your supervisor.",duplicate:null};
+function workerMain(day,token){
+  document.body.classList.add("worker");W.day=day;W.token=token;wLoad();
+}
+function wMsg(title,text,retry){
+  $("#app").innerHTML=`<section class="card"><div class="donebox"><div class="done-ic" style="background:var(--crit);color:#fff">!</div><div class="h" style="font-size:22px">${esc(title)}</div><div class="empty" style="font-size:15px">${esc(text)}</div>
+    ${retry?`<button class="btn primary big" id="wRetry">Try again</button>`:""}</div></section>`;
+  const b=$("#wRetry");if(b)b.onclick=wLoad;
+}
+async function wFetch(){
+  let res;try{res=await sb.rpc("get_prestart",{p_day:W.day,p_token:W.token})}catch(e){res={error:e}}
+  if(res.error)return{net:true};return{d:res.data};
+}
+async function wLoad(){
+  $("#app").innerHTML=`<section class="card"><div class="empty">Loading today's pre-start…</div></section>`;
+  if(!sb){wMsg("Couldn't start","The app didn't load properly. Check your signal and reload the page.",true);return}
+  const {net,d}=await wFetch();
+  if(net){wMsg("No signal","Couldn't load today's pre-start. Check your signal and try again.",true);return}
+  if(!d||d.error){wMsg(d&&d.error==="locked"?"Too many tries":"This QR code doesn't work today",WERR[(d&&d.error)||"invalid"]);return}
+  if(d.completed){wMsg("Today's pre-start is closed",WERR.closed);return}
+  W.d=d;W.pick=null;W.typed=false;W.ack=false;wStep1();
+}
+const kv=(k,v,w)=>`<div class="${w?"w":""}"><span>${esc(k)}</span><b>${esc(v||"-")}</b></div>`;
+const ulist=(t,ol)=>{const L=lines(t);return L.length?`<${ol?"ol":"ul"} class="list">${L.map(x=>`<li>${esc(x)}</li>`).join("")}</${ol?"ol":"ul"}>`:`<div class="empty">None listed.</div>`};
+function wStep1(){
+  const d=W.d;window.scrollTo(0,0);
+  $("#app").innerHTML=`
+  <section class="card hero"><div class="steps">Step 1 of 2 · Read</div><div class="h">Daily pre-start meeting</div><div class="sub">${esc(nice(d.day))}</div>
+    <div class="empty">Read everything below, then tick the box at the bottom.</div></section>
+  <section class="card"><h2>Today's details</h2><div class="kv">
+    ${kv("Project",d.project,1)}${kv("Site address",d.site_address,1)}${kv("Date",dmy(d.day))}${kv("Weather",d.weather)}
+    ${kv("Work location",d.work_location)}${kv("Building",d.building)}${kv("Level",d.level)}${kv("Person leading",d.leader)}</div></section>
+  <section class="card"><h2>Any issues from the previous day</h2>
+    <div>${d.issues===true?`<span class="ans yes">YES</span>`:d.issues===false?`<span class="ans no">NO</span>`:`<span class="empty">Not answered</span>`}</div>
+    ${lines(d.issues_details).length?ulist(d.issues_details):""}
+    <div class="note">${esc(SWMS_NOTE)}</div></section>
+  <section class="card"><h2>Planned work today</h2>${ulist(d.planned,1)}</section>
+  <section class="card risk"><h2>Hazards and control measures</h2>${ulist(d.hazards)}</section>
+  <section class="card"><h2>Other notes</h2>${ulist(d.notes)}</section>
+  <section class="card"><label class="chk"><input type="checkbox" id="wAck"><span>${esc(ACK_TEXT)}</span></label>
+    <button class="btn primary big" id="wNext" disabled>Continue</button></section>`;
+  const a=$("#wAck"),n=$("#wNext");a.onchange=()=>{W.ack=a.checked;n.disabled=!a.checked};
+  n.onclick=()=>{if(W.ack)wStep2()};
+}
+function wStep2(){
+  const d=W.d;window.scrollTo(0,0);
+  $("#app").innerHTML=`
+  <section class="card hero"><div class="steps">Step 2 of 2 · Sign</div><div class="h">Acknowledge and sign</div><div class="sub">${esc(nice(d.day))} · ${esc(d.project||"")}</div></section>
+  <section class="card"><h2>Acknowledgment</h2><div class="empty" style="margin-top:-6px">By signing you are stating that</div>
+    <div class="box3">${BOXES.map(b=>`<section><h3>${esc(b.t)}</h3><ol>${b.items.map(i=>`<li>${esc(i)}</li>`).join("")}</ol></section>`).join("")}</div></section>
+  <section class="card"><h2>Your name</h2>
+    <div id="wPickWrap"${d.people.length?"":" hidden"}><input type="search" id="wQ" placeholder="Search your name" autocomplete="off" autocapitalize="words" spellcheck="false" aria-label="Search your name">
+      <div class="names" id="wNames" role="list" style="margin-top:8px"></div>
+      <button type="button" class="ghost" id="wNotListed" style="width:100%;margin-top:8px">My name isn't listed</button></div>
+    <div id="wTypeWrap"${d.people.length?" hidden":""}><label>Type your full name<input type="text" id="wTyped" maxlength="60" autocomplete="name" autocapitalize="words" spellcheck="false"></label>
+      ${d.people.length?`<button type="button" class="del" id="wBackList" style="align-self:flex-start;padding:0">‹ Pick from the list instead</button>`:""}</div>
+  </section>
+  <section class="card"><h2>Your signature</h2>${padHTML("wSig")}</section>
+  <div id="wErr" class="err" role="alert" hidden></div>
+  <button class="btn primary big" id="wSign">Sign pre-start</button>
+  <button class="btn" id="wBack">‹ Back to the pre-start</button>`;
+  if(!d.people.length)W.typed=true;
+  W.pad=sigPad($("#wSig"));$("#wSig").addEventListener("sig",()=>wErr(""));$("#wTyped").oninput=()=>wErr("");$("[data-clear=wSig]").onclick=()=>W.pad.clear();
+  const draw=()=>{const q=$("#wQ").value.trim().toLowerCase();const P=d.people.filter(p=>!q||p.name.toLowerCase().includes(q));
+    $("#wNames").innerHTML=P.length?P.map(p=>`<button type="button" role="listitem" data-id="${esc(p.id)}" aria-pressed="${W.pick===p.id}" ${p.signed?"disabled":""}><span>${esc(p.name)}</span>${p.signed?"<small>signed</small>":W.pick===p.id?"<span>✓</span>":""}</button>`).join("")
+      :`<div class="empty">No name matches. Tap "My name isn't listed" below.</div>`;
+    $("#wNames").querySelectorAll("[data-id]").forEach(b=>b.onclick=()=>{W.pick=b.dataset.id;W.typed=false;draw();$("#wErr").hidden=true})};
+  draw();$("#wQ").oninput=draw;
+  const showType=on=>{W.typed=on;if(on)W.pick=null;$("#wPickWrap").hidden=on;$("#wTypeWrap").hidden=!on;if(on)setTimeout(()=>$("#wTyped").focus(),50);else draw()};
+  $("#wNotListed").onclick=()=>showType(true);const bl=$("#wBackList");if(bl)bl.onclick=()=>showType(false);
+  $("#wBack").onclick=wStep1;
+  $("#wSign").onclick=wSign;
+}
+function wErr(t){const e=$("#wErr");e.textContent=t;e.hidden=!t;if(t)try{e.scrollIntoView({block:"center",behavior:"smooth"})}catch(x){}}
+async function wSign(){
+  const btn=$("#wSign");if(btn.disabled)return;
+  const typed=W.typed?$("#wTyped").value.replace(/\s+/g," ").trim():"";
+  if(!W.typed&&!W.pick){wErr("Pick your name from the list (or tap \"My name isn't listed\").");return}
+  if(W.typed&&typed.length<2){wErr("Type your full name.");return}
+  if(W.pad.empty()){wErr("Sign in the box with your finger.");return}
+  const png=W.pad.png();if(!png){wErr(WERR.signature);return}
+  btn.disabled=true;btn.textContent="Signing…";wErr("");
+  let res;try{res=await sb.rpc("sign_prestart",{p_day:W.day,p_token:W.token,p_person_id:W.typed?null:W.pick,p_typed_name:W.typed?typed:null,p_signature:png})}catch(e){res={error:e}}
+  btn.disabled=false;btn.textContent="Sign pre-start";
+  if(res.error){wErr("No signal. Your signature hasn't been sent. Try again.");return}
+  const d=res.data||{};
+  if(d.ok){wDone(d.name,d.signed_at);return}
+  if(d.error==="duplicate"){const nm=W.typed?typed:(W.d.people.find(p=>p.id===W.pick)||{}).name;wErr(`${nm||"This name"} has already signed today's pre-start.`);refreshNames();return}
+  if(d.error==="person"){refreshNames()}
+  if(["invalid","expired","locked","closed"].includes(d.error)){wMsg(d.error==="closed"?"Today's pre-start is closed":"This QR code doesn't work today",WERR[d.error]);return}
+  wErr(WERR[d.error]||"Something went wrong. Try again.");
+}
+async function refreshNames(){const {d}=await wFetch();if(d&&!d.error){W.d.people=d.people;W.pick=null;const q=$("#wQ");if(q)q.dispatchEvent(new Event("input"))}}
+function wDone(name,at){
+  window.scrollTo(0,0);
+  $("#app").innerHTML=`<section class="card"><div class="donebox"><div class="done-ic">✓</div><div class="h">Signed</div>
+    <div style="font:600 20px var(--display)">${esc(name)}</div><div class="empty" style="font-size:15px">${esc(fmtTime(at))} · ${esc(nice(W.day))}</div>
+    <div class="empty">You're signed on to today's pre-start. Pass the phone to the next person, or close this page.</div>
+    <button class="btn primary big" id="wAgain">Next person</button></div></section>`;
+  $("#wAgain").onclick=wLoad;
+}
+
+/* ======================================================================
+   SUPERVISOR MODE (logged in)
+   ====================================================================== */
+const COLS=["day","project","site_address","work_location","building","level","weather","weather_manual","leader","issues","issues_details","planned","hazards","notes","token","published_at","completed_at","supervisor_name","supervisor_signature"];
+const LIST_COLS=COLS.filter(c=>c!=="supervisor_signature").concat("updated_at").join(",");
+const SET_COLS=["project","site_address","work_location","building","level","leader","hazards","notes","builder_email"];
+let settings={...DEF_SETTINGS},people=[],days={},sigs={},cur="",outbox={days:{},settings:null},saving=false,flushTimer=null,calM="",pollTimer=null,owner=null,pulled=false;
+const pick=(o,ks)=>{const r={};ks.forEach(k=>{if(o[k]!==undefined)r[k]=o[k]});return r};
+const blankDay=k=>({day:k,...pick(settings,["project","site_address","work_location","building","level","leader","hazards","notes"]),weather:"",weather_manual:false,issues:null,issues_details:"",planned:"",token:null,published_at:null,completed_at:null,supervisor_name:"",supervisor_signature:null});
+const rec=()=>days[cur]||blankDay(cur);
+const edit=()=>days[cur]||(days[cur]=blankDay(cur));
+const activePeople=()=>people.filter(p=>p.active);
+const dayStatus=k=>{const r=days[k];if(!r)return"blank";if(r.completed_at)return"done";if(r.published_at)return"wip";return"draft"};
+
+function storedUser(){try{const s=JSON.parse(localStorage.getItem(AUTH_KEY)||"null");return s&&s.user&&s.user.id?s.user:null}catch(e){return null}}
+function saveCache(){try{const lite={};for(const k in days){const r={...days[k]};delete r.supervisor_signature;lite[k]=r}
+  localStorage.setItem(LSC,JSON.stringify({settings,people,days:lite}));localStorage.setItem(LSQ,JSON.stringify(outbox))}catch(e){}}
+function loadCache(){try{const c=JSON.parse(localStorage.getItem(LSC)||"null");if(c){settings={...DEF_SETTINGS,...(c.settings||{})};people=c.people||[];days=c.days||{}}}catch(e){}
+  try{const o=JSON.parse(localStorage.getItem(LSQ)||"null");if(o&&o.days)outbox={days:o.days,settings:o.settings||null};for(const k in outbox.days){const x=clone(outbox.days[k]);delete x._at;days[k]=x}}catch(e){}}
+function markDay(k){outbox.days[k]={...clone(days[k]),_at:Date.now()};saveCache()}
+function markSettings(){outbox.settings=clone(pick(settings,SET_COLS));saveCache()}
+const pending=()=>Object.keys(outbox.days).length+(outbox.settings?1:0);
+function status(t,busy){const e=$("#statusTxt");if(e){e.textContent=t;$("#dot").classList.toggle("busy",!!busy)}}
+function finalStatus(){status(pending()?(online()?"Not saved yet. Retrying…":"No signal: saved on this phone only"):"Saved",!!pending())}
+function soon(ms){clearTimeout(flushTimer);flushTimer=setTimeout(flush,ms==null?700:ms)}
+async function flush(){
+  if(saving||!sb||!online()||!storedUser()||!pulled){finalStatus();return}
+  if(!pending()){finalStatus();return}
+  saving=true;status("Saving…",true);
+  try{
+    for(const k of Object.keys(outbox.days)){const snap=outbox.days[k];
+      const {error}=await sb.from("prestarts").upsert({...pick(snap,COLS),updated_at:new Date().toISOString()});
+      if(error){console.warn(error);if(error.code==="23505"&&/token/.test(error.message||"")){days[k].token=newToken();markDay(k)}continue}
+      if(outbox.days[k]===snap)delete outbox.days[k]}
+    if(outbox.settings){const snap=outbox.settings;const {error}=await sb.from("settings").upsert({id:1,...snap,updated_at:new Date().toISOString()});if(!error&&outbox.settings===snap)outbox.settings=null}
+  }catch(e){console.warn(e)}
+  finally{saving=false;saveCache();finalStatus()}
+}
+async function pull(){
+  if(!sb||!online()||!storedUser())return;
+  status("Loading…",true);
+  try{
+    const o=await sb.from("app_owner").select("user_id").limit(1);
+    if(o.error){if(o.status===401||/JWT/i.test(o.error.message||"")){showLogin(true)}finalStatus();return}
+    owner=!!(o.data&&o.data.length);if(!owner){notOwner();return}
+    const [st,pp,ds]=await Promise.all([sb.from("settings").select(SET_COLS.join(",")).eq("id",1).maybeSingle(),
+      sb.from("people").select("id,name,active").order("name"),sb.from("prestarts").select(LIST_COLS)]);
+    if(st.data&&!outbox.settings)settings={...DEF_SETTINGS,...st.data};
+    if(pp.data)people=pp.data;
+    if(ds.data){const keep={};for(const k in days)if(days[k]&&days[k].supervisor_signature)keep[k]=days[k].supervisor_signature;
+      const nd={};ds.data.forEach(r=>{nd[r.day]=r;if(keep[r.day]&&r.completed_at)r.supervisor_signature=keep[r.day]});
+      /* Merge what's waiting on this phone: the newer version wins, and a published/completed day online is never replaced by a draft. */
+      for(const k in outbox.days){const loc=outbox.days[k],srv=nd[k];
+        if(srv&&(Date.parse(srv.updated_at||0)>(loc._at||0)||(srv.completed_at&&!loc.completed_at))){delete outbox.days[k];continue}
+        const x=clone(days[k]);if(srv&&srv.token&&!x.token){x.token=srv.token;x.published_at=srv.published_at}nd[k]=x;outbox.days[k]={...clone(x),_at:loc._at}}
+      days=nd}
+    pulled=true;
+    saveCache();render();await loadSigs(cur);
+  }catch(e){console.warn(e)}
+  flush();
+}
+function notOwner(){$("#app").innerHTML=`<section class="card"><h2>Not the supervisor account</h2><div class="empty">You're logged in as ${esc((storedUser()||{}).email||"")}, but this account isn't set up as the pre-start supervisor.</div><button class="btn" id="lo2">Log out</button></section>`;$("#lo2").onclick=logout}
+async function loadSigs(k){
+  if(!sb||!online()||!days[k]||!days[k].published_at)return drawAtt();
+  const {data,error}=await sb.from("signoffs").select("id,day,person_id,name,typed_by_worker,signature,signed_at").eq("day",k).order("signed_at");
+  if(!error){sigs[k]=data||[];}drawAtt();
+}
+function poll(){clearInterval(pollTimer);pollTimer=setInterval(()=>{const r=days[cur];
+  if(document.visibilityState==="visible"&&r&&r.published_at&&!r.completed_at&&cur===sydToday()&&!($("#dlg").open))loadSigs(cur)},6000)}
+
+/* ---------- automatic weather (Open-Meteo forecast; address lookup via OpenStreetMap), like the diary ---------- */
+function wxDesc(c){c=Number(c);if(c===0)return"Clear";if(c===1)return"Mostly sunny";if(c===2)return"Partly cloudy";if(c===3)return"Overcast";if(c===45||c===48)return"Fog";
+  if(c>=51&&c<=57)return"Drizzle";if(c>=61&&c<=67)return"Rain";if(c>=71&&c<=77)return"Snow";if(c>=80&&c<=82)return"Showers";if(c>=95)return"Thunderstorms";return"Cloudy"}
+async function siteGeo(addr){
+  addr=String(addr||"").trim();if(!addr)return null;
+  try{const g=JSON.parse(localStorage.getItem(LSG)||"null");if(g&&g.address===addr)return g.none?null:g}catch(e){}
+  const qs=[...new Set([addr,addr.replace(/^[\d\s\-\/]+/,""),addr.split(/\s+/).pop()])].filter(Boolean);
+  for(const q of qs){const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=au&q=${encodeURIComponent(q)}`);if(!r.ok)continue;const j=await r.json();
+    if(j&&j[0]){const g={address:addr,lat:Number(j[0].lat),lon:Number(j[0].lon)};try{localStorage.setItem(LSG,JSON.stringify(g))}catch(e){}return g}}
+  try{localStorage.setItem(LSG,JSON.stringify({address:addr,none:true}))}catch(e){}return null}
+const wxBusy={};
+async function autoWeather(k,asked){
+  const r=days[k];if(!r||r.completed_at||(r.weather_manual&&!asked)||wxBusy[k])return;
+  if(!online()){if(asked)toast("No signal. Try again when you're online.");return}
+  wxBusy[k]=1;let ok=false;
+  try{const g=await siteGeo(r.site_address);if(!g){if(asked)toast("Couldn't find the site address for the weather");return}
+    const q=`latitude=${g.lat}&longitude=${g.lon}&daily=weather_code,precipitation_sum,precipitation_probability_max,temperature_2m_max,temperature_2m_min,wind_speed_10m_max&timezone=Australia%2FSydney&start_date=${k}&end_date=${k}`;
+    let res=await fetch("https://api.open-meteo.com/v1/forecast?"+q);if(!res.ok)res=await fetch("https://archive-api.open-meteo.com/v1/archive?"+q.replace(",precipitation_probability_max",""));if(!res.ok)return;
+    const D=(await res.json()).daily;if(!D||!D.time||!D.time.length||D.temperature_2m_max[0]==null)return;
+    const rain=Math.round((D.precipitation_sum[0]||0)*10)/10,pp=D.precipitation_probability_max?D.precipitation_probability_max[0]:null,wind=Math.round(D.wind_speed_10m_max[0]||0);
+    const t=[`${wxDesc(D.weather_code[0])}, ${Math.round(D.temperature_2m_min[0])}-${Math.round(D.temperature_2m_max[0])}°C`];
+    if(rain>0)t.push(`${rain} mm rain${pp!=null?` (${pp}%)`:""}`);if(wind>=25)t.push(`wind ${wind} km/h`);
+    const x=days[k];if(!x||x.completed_at||(x.weather_manual&&!asked))return;
+    x.weather=t.join(", ");x.weather_manual=false;markDay(k);soon();ok=true;
+    if(k===cur){const f=document.querySelector("[data-f=weather]");if(f)f.value=x.weather}
+  }catch(e){console.warn("weather",e)}
+  finally{delete wxBusy[k];if(asked)toast(ok?"Weather: "+days[k].weather:"Couldn't get the weather. Try again later.")}
+}
+
+/* ---------- main screen ---------- */
+const fld=(f,label,v,ph)=>`<label>${esc(label)}<input type="text" data-f="${f}" value="${esc(v)}"${ph?` placeholder="${esc(ph)}"`:""}></label>`;
+const ta=(f,v,rows,ph)=>`<textarea data-f="${f}" rows="${rows||4}"${ph?` placeholder="${esc(ph)}"`:""}>${esc(v)}</textarea>`;
+const prevDay=k=>Object.keys(days).filter(x=>x<k).sort().pop()||null;
+const COPY_KEYS=["project","site_address","work_location","building","level","leader","hazards","notes"];
+function render(){
+  $("#date").textContent=new Date(cur+"T12:00:00").toLocaleDateString("en-AU",{weekday:"short",day:"numeric",month:"short",year:"numeric"});
+  const r=rec(),locked=!!r.completed_at,pub=!!r.published_at,today=sydToday(),prev=prevDay(cur);
+  const canCopy=!locked&&!pub&&prev&&COPY_KEYS.some(k=>(days[prev][k]||"")!==(r[k]||""));
+  $("#app").classList.toggle("locked",locked);
+  const hero=`<section class="card hero"><div class="h">${esc(new Date(cur+"T12:00:00").toLocaleDateString("en-AU",{weekday:"long"}))}</div>
+    <div class="sub">${esc(nice(cur))}${cur===today?" · today":""}</div>
+    <div class="tiles"><div class="tile"><span>Signed</span><b id="tSigned">${pub?(sigs[cur]||[]).length:"-"}</b></div><div class="tile"><span>On the list</span><b>${activePeople().length}</b></div></div>
+    <div class="status"><span class="dot" id="dot"></span><span id="statusTxt"></span></div>
+    <div class="pub">${locked?`<div><b style="color:var(--ok)">Completed</b> by ${esc(r.supervisor_name)} at ${esc(fmtTime(r.completed_at))}. Sign-ins are closed.</div>
+        <div class="btns"><button class="btn primary" id="hPdf">PDF: download or share</button><button class="btn" id="hReopen">Reopen</button></div>`
+      :pub?`<div>${cur===today?"<b>Published.</b> Workers can scan the QR code and sign.":cur>today?`<b>Published.</b> The QR code works on ${esc(shortDay(cur))} only.`:"<b>Published</b>, but this day has passed: the QR code no longer works."} Changes you make below show up for workers straight away.</div>
+        <div class="btns"><button class="btn primary" id="hQr">Show QR code</button><button class="btn" id="hPrint">Print QR</button></div>`
+      :`<div class="empty">Fill in the day, then publish to get today's QR code.</div><button class="btn primary big" id="hPub">Publish and show QR code</button>`}</div></section>`;
+  const att=`<section class="card" id="attCard"><h2>Attendance</h2><div id="att"></div></section>`;
+  const form=`
+  ${canCopy?`<section class="card"><div class="empty">Copy the project details, hazards and notes from ${esc(shortDay(prev))}.</div><button class="btn" id="copyPrev">Copy from previous day</button></section>`:""}
+  <section class="card"><h2>Day details</h2>
+    ${fld("project","Project",r.project)}${fld("site_address","Site address",r.site_address)}
+    <label>Weather forecast<input type="text" data-f="weather" value="${esc(r.weather)}" placeholder="e.g. Sunny, 16-27°C"></label>
+    ${locked?"":`<div class="btns" style="margin-top:-4px"><button type="button" class="btn" id="wxGo" style="min-height:38px;font-size:14px">&#8635; Automatic weather</button><span class="empty" style="align-self:center">${r.weather_manual?"Typed by you":r.weather?"Filled in automatically":""}</span></div>`}
+    <div class="row3">${fld("work_location","Work location",r.work_location)}${fld("building","Building",r.building)}${fld("level","Level",r.level)}</div>
+    ${fld("leader","Supervisor / person leading the meeting",r.leader)}
+  </section>
+  <section class="card"><h2>Issues from previous day</h2>
+    <div class="sev" role="group" aria-label="Any issues arising from previous day?"><button type="button" data-yn="yes" aria-pressed="${r.issues===true}">YES</button><button type="button" data-yn="no" aria-pressed="${r.issues===false}">NO</button></div>
+    ${ta("issues_details",r.issues_details,3,"If YES, say what (one per line)")}
+    <div class="note">${esc(SWMS_NOTE)}</div></section>
+  <section class="card"><h2>Planned work today</h2><div class="empty" style="margin-top:-6px">One task per line.</div>${ta("planned",r.planned,5,"e.g. Forming column starters SLN")}</section>
+  <section class="card risk"><h2>Hazards and control measures</h2><div class="empty" style="margin-top:-6px">One per line.</div>${ta("hazards",r.hazards,7)}</section>
+  <section class="card"><h2>Other notes</h2><div class="empty" style="margin-top:-6px">One per line. The standard list is filled in for you.</div>${ta("notes",r.notes,9)}
+    ${locked?"":`<button type="button" class="del" id="notesStd" style="align-self:flex-start;padding:0">Reset to the standard list</button>`}</section>
+  ${locked?"":`<section class="card"><div class="empty">Start tomorrow with these project details, hazards and notes.</div><button class="btn" id="saveDef">Save as defaults for new days</button></section>`}`;
+  $("#app").innerHTML=hero+(pub?att+form:form);
+  if(locked)$("#app").querySelectorAll("input,textarea,.sev button").forEach(x=>x.disabled=true);
+  wireDay();drawAtt();finalStatus();
+  if(pulled&&cur===sydToday()&&!r.weather&&!r.weather_manual&&!locked&&online()){edit();autoWeather(cur)}
+}
+function wireDay(){
+  const A=$("#app");
+  A.querySelectorAll("[data-f]").forEach(el=>el.oninput=()=>{const r=edit();r[el.dataset.f]=el.value;if(el.dataset.f==="weather")r.weather_manual=true;markDay(cur);soon(1200);status("Saving…",true)});
+  A.querySelectorAll("[data-yn]").forEach(b=>b.onclick=()=>{const r=edit(),v=b.dataset.yn==="yes";r.issues=r.issues===v?null:v;
+    A.querySelectorAll("[data-yn]").forEach(x=>x.setAttribute("aria-pressed",String(r.issues===(x.dataset.yn==="yes"))));markDay(cur);soon()});
+  const on=(id,fn)=>{const e=A.querySelector("#"+id);if(e)e.onclick=fn};
+  on("copyPrev",()=>{const p=days[prevDay(cur)];if(!p)return;const r=edit();COPY_KEYS.forEach(k=>r[k]=p[k]||"");markDay(cur);soon();render();toast("Copied from "+shortDay(p.day))});
+  on("notesStd",()=>{if(!confirm("Replace the notes with the standard list?"))return;const r=edit();r.notes=DEF_NOTES;markDay(cur);soon();render()});
+  on("saveDef",()=>{const r=rec();COPY_KEYS.forEach(k=>settings[k]=r[k]||"");markSettings();soon();toast("Saved. New days will start with these details.")});
+  on("wxGo",()=>{const r=edit();if(!String(r.site_address||"").trim()){toast("Add the site address first");return}toast("Getting the weather…");autoWeather(cur,true)});
+  on("hPub",publish);on("hQr",()=>showQR(rec()));on("hPrint",()=>printQR(rec()));on("hPdf",pdfSheet);on("hReopen",reopen);
+}
+function drawAtt(){
+  const e=$("#att");if(!e)return;const r=rec(),S=sigs[cur]||[],act=activePeople();
+  const signedIds=new Set(S.map(s=>s.person_id).filter(Boolean)),signedNames=new Set(S.map(s=>s.name.toLowerCase()));
+  const notYet=act.filter(p=>!signedIds.has(p.id)&&!signedNames.has(p.name.toLowerCase()));
+  const t=$("#tSigned");if(t)t.textContent=S.length;
+  e.innerHTML=`<div class="empty" style="margin-top:-6px">${S.length} signed · ${notYet.length} on the list not signed yet${r.completed_at?"":cur===sydToday()?" · updates by itself":""}</div>
+    <div class="att">${S.length?S.map(s=>`<div class="it"><img alt="Signature of ${esc(s.name)}" src="${esc(s.signature)}"><div><div class="nm">${esc(s.name)}${s.typed_by_worker?`<span class="flag">added by worker</span>`:""}</div><small>${esc(fmtTime(s.signed_at))}</small>
+      ${s.typed_by_worker&&!act.some(p=>p.name.toLowerCase()===s.name.toLowerCase())&&!r.completed_at?`<div><button class="del" data-addp="${esc(s.name)}" style="padding:0;min-height:28px;color:var(--ink);text-decoration:underline">Add to people list</button></div>`:""}</div>
+      ${r.completed_at?"<span></span>":`<button class="del" data-rm="${esc(s.id)}" aria-label="Remove ${esc(s.name)}">Remove</button>`}</div>`).join(""):`<div class="empty">Nobody has signed yet.</div>`}</div>
+    ${notYet.length?`<details><summary class="empty" style="cursor:pointer">Not signed yet (${notYet.length})</summary><div class="empty" style="margin-top:6px">${notYet.map(p=>esc(p.name)).join(" · ")}</div></details>`:""}
+    <div class="btns"><button class="btn" id="attRef" style="min-height:40px">Refresh</button></div>`;
+  e.querySelector("#attRef").onclick=()=>{if(!online()){toast("No signal");return}loadSigs(cur).then(()=>toast("Up to date"))};
+  e.querySelectorAll("[data-rm]").forEach(b=>b.onclick=async()=>{const s=S.find(x=>x.id===b.dataset.rm);if(!s||!confirm(`Remove ${s.name}'s sign-in? They can then sign again.`))return;
+    const {error}=await sb.from("signoffs").delete().eq("id",s.id);if(error){toast("Couldn't remove it. Check your signal.");return}toast("Removed");loadSigs(cur)});
+  e.querySelectorAll("[data-addp]").forEach(b=>b.onclick=async()=>{const {data,error}=await sb.from("people").insert({name:b.dataset.addp}).select("id,name,active").single();
+    if(error){toast("Couldn't add. Check your signal.");return}people.push(data);people.sort((a,b)=>a.name.localeCompare(b.name));saveCache();toast("Added to the people list");drawAtt()});
+}
+
+/* ---------- publish, QR ---------- */
+async function publish(){
+  const r=edit();if(r.completed_at)return;
+  if(!lines(r.planned).length&&!confirm("Planned work is empty. Publish anyway?"))return;
+  if(!r.token)r.token=newToken();          // re-publishing keeps the same code, so printed QRs keep working that day
+  if(!r.published_at)r.published_at=new Date().toISOString();
+  markDay(cur);render();await flush();
+  if(outbox.days[cur])toast("Published on this phone, but not online yet. The QR code works once it's saved.");
+  showQR(days[cur]);loadSigs(cur);
+}
+let wake=null;
+async function showQR(r){
+  if(!r||!r.token)return;
+  const v=document.createElement("div");v.className="qrv";v.setAttribute("role","dialog");v.setAttribute("aria-label","QR code");
+  v.innerHTML=`<img class="lg" src="${LOGO}" alt="Transform Group"><h2>Scan to sign the pre-start</h2><div class="s"><b>${esc(r.project)}</b> · ${esc(nice(r.day))}</div>
+    <div class="q">${qrSVG(qrLink(r))}</div><div class="s">Open your phone camera and point it at the code.${r.day===sydToday()?" Works today only.":` Works on ${esc(shortDay(r.day))} only.`}</div>
+    <div class="btns"><button class="btn primary" id="qClose">Close</button><button class="btn" id="qPrint">Print QR</button><button class="btn" id="qCopy">Copy link</button></div>`;
+  document.body.appendChild(v);
+  try{if(navigator.wakeLock)wake=await navigator.wakeLock.request("screen")}catch(e){}
+  v.querySelector("#qClose").onclick=()=>{v.remove();try{wake&&wake.release()}catch(e){}wake=null;loadSigs(cur)};
+  v.querySelector("#qPrint").onclick=()=>{v.remove();printQR(r)};
+  v.querySelector("#qCopy").onclick=async()=>{try{await navigator.clipboard.writeText(qrLink(r));toast("Link copied")}catch(e){prompt("Copy this link:",qrLink(r))}};
+}
+async function printQR(r){
+  sheet("Print QR code",`<div class="empty">An A4 page with the QR code and project name, for the noticeboard. It only works on ${esc(nice(r.day))}.</div><div id="mm" class="empty">Making the PDF…</div>`,null,null,async b=>{
+    try{const blob=await buildQrPDF(r);fileButtons(b.querySelector("#mm"),blob,pdfName(r,"Pre-start QR"))}catch(e){b.querySelector("#mm").textContent="Couldn't make the PDF: "+(e.message||e)}});
+}
+
+/* ---------- complete / reopen / PDF ---------- */
+function completeFlow(){
+  const r=rec();
+  if(r.completed_at){pdfSheet();return}
+  if(!r.published_at){toast("Publish the day first, so workers can sign.");return}
+  const n=(sigs[cur]||[]).length;
+  sheet("Complete pre-start",`<div class="empty">${n} ${n===1?"person has":"people have"} signed. Once you complete it, sign-ins close and the PDF is made.</div>
+    <label>Site supervisor / person responsible<input type="text" id="cName" value="${esc(r.supervisor_name||r.leader||"")}" autocomplete="name" autocapitalize="words"></label>
+    <div><div class="empty" style="margin-bottom:6px">Your signature</div>${padHTML("cSig")}</div>`,"Complete and sign",async b=>{
+    const name=b.querySelector("#cName").value.trim();if(!name){toast("Type your name");return false}
+    if(pad.empty()){toast("Sign in the box with your finger");return false}
+    if(!n&&!confirm("Nobody has signed yet. Complete anyway?"))return false;
+    const png=pad.png();if(!png){toast("Signature too big. Clear it and sign again.");return false}
+    const x=edit();x.supervisor_name=name;x.supervisor_signature=png;x.completed_at=new Date().toISOString();markDay(cur);await flush();
+    if(outbox.days[cur])toast("Completed on this phone. It will save when you have signal.");
+    render();setTimeout(pdfSheet,50);
+  });
+  let pad=sigPad($("#cSig"));$("[data-clear=cSig]").onclick=()=>pad.clear();
+}
+function reopen(){
+  if(!confirm("Reopen this day? Your sign-off signature is removed and workers can sign again (if it's still today)."))return;
+  const r=edit();r.completed_at=null;r.supervisor_signature=null;markDay(cur);soon(0);render();
+}
+async function pdfSheet(){
+  const r=rec();
+  sheet("Pre-start PDF",`<div id="mm" class="empty">Making the PDF…</div>`,null,null,async b=>{
+    const mm=b.querySelector("#mm");
+    try{
+      if(r.published_at&&online())await loadSigs(cur);
+      if(r.completed_at&&!r.supervisor_signature&&online()){const {data}=await sb.from("prestarts").select("supervisor_signature").eq("day",cur).maybeSingle();if(data&&days[cur])days[cur].supervisor_signature=data.supervisor_signature}
+      const blob=await buildPDF(rec(),sigs[cur]||[]);
+      fileButtons(mm,blob,pdfName(r),{emailTo:settings.builder_email||"",subject:`Daily pre-start ${dmy(r.day)} - ${r.project||""}`});
+      if(!r.completed_at)mm.insertAdjacentHTML("afterbegin",`<div class="empty" style="color:var(--warn)">Not completed yet: the supervisor sign-off is blank.</div>`);
+    }catch(e){console.error(e);mm.textContent="Couldn't make the PDF: "+(e.message||e)}
+  });
+}
+
+/* ---------- people ---------- */
+function peopleSheet(){
+  const body=`<div style="display:flex;gap:8px"><input type="text" id="pName" placeholder="Full name" autocapitalize="words" autocomplete="off" aria-label="Full name" style="flex:1"><button class="btn primary" id="pAdd" type="button">Add</button></div>
+    <details><summary class="empty" style="cursor:pointer">Paste a list of names (one per line)</summary><div style="display:flex;flex-direction:column;gap:8px;margin-top:8px"><textarea id="pBulk" rows="6" placeholder="One name per line"></textarea><button class="btn" id="pBulkAdd" type="button">Add all</button></div></details>
+    <div class="empty" id="pCount"></div><div class="dl" id="pList"></div>`;
+  sheet("People",body,null,null,b=>{
+    const draw=()=>{const A=activePeople();b.querySelector("#pCount").textContent=`${A.length} ${A.length===1?"name":"names"} on the list. Workers pick their name from this list.`;
+      b.querySelector("#pList").innerHTML=A.length?A.map(p=>`<div class="it"><span>${esc(p.name)}</span><button class="del" data-pid="${esc(p.id)}" type="button">Remove</button></div>`).join(""):`<div class="empty">No names yet.</div>`;
+      b.querySelectorAll("[data-pid]").forEach(x=>x.onclick=async()=>{const p=people.find(q=>q.id===x.dataset.pid);if(!p||!confirm(`Remove ${p.name} from the list? Their past sign-ins stay.`))return;
+        const {error}=await sb.from("people").delete().eq("id",p.id);if(error){toast("Couldn't remove. Check your signal.");return}people=people.filter(q=>q.id!==p.id);saveCache();draw();render()})};
+    const add=async names=>{
+      if(!online()){toast("No signal. Try again when you're online.");return 0}
+      const have=new Set(people.map(p=>p.name.toLowerCase()));const seen=new Set();
+      const rows=names.map(n=>n.replace(/\s+/g," ").trim().slice(0,80)).filter(n=>n.length>=2&&!have.has(n.toLowerCase())&&!seen.has(n.toLowerCase())&&seen.add(n.toLowerCase())).map(name=>({name}));
+      if(!rows.length){toast(names.length>1?"All those names are already on the list":"That name is already on the list (or too short)");return 0}
+      const {data,error}=await sb.from("people").insert(rows).select("id,name,active");if(error){toast("Couldn't add. Check your signal.");return 0}
+      people=people.concat(data).sort((a,b)=>a.name.localeCompare(b.name));saveCache();draw();render();return data.length};
+    b.querySelector("#pAdd").onclick=async()=>{const i=b.querySelector("#pName");if(await add([i.value])){i.value="";i.focus();okMsg("Added")}};
+    b.querySelector("#pName").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();b.querySelector("#pAdd").click()}};
+    b.querySelector("#pBulkAdd").onclick=async()=>{const t=b.querySelector("#pBulk");const n=await add(t.value.split(/\r?\n/));if(n){t.value="";okMsg(`Added ${n} ${n===1?"name":"names"}`)}};
+    draw();
+  });
+}
+
+/* ---------- settings ---------- */
+function settingsSheet(){
+  const s=settings;
+  sheet("Settings",`<label>Builder's email (for sending the PDF)<input type="email" id="sEmail" value="${esc(s.builder_email)}" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="name@builder.com.au"></label>
+    <div class="empty">New days start with these:</div>
+    <label>Project<input type="text" id="s_project" value="${esc(s.project)}"></label><label>Site address<input type="text" id="s_site_address" value="${esc(s.site_address)}"></label>
+    <div class="row3"><label>Work location<input type="text" id="s_work_location" value="${esc(s.work_location)}"></label><label>Building<input type="text" id="s_building" value="${esc(s.building)}"></label><label>Level<input type="text" id="s_level" value="${esc(s.level)}"></label></div>
+    <label>Person leading the meeting<input type="text" id="s_leader" value="${esc(s.leader)}"></label>
+    <label>Hazards and control measures (one per line)<textarea id="s_hazards" rows="6">${esc(s.hazards)}</textarea></label>
+    <label>Other notes (one per line)<textarea id="s_notes" rows="8">${esc(s.notes)}</textarea></label>`,"Save",b=>{
+    const em=b.querySelector("#sEmail").value.trim();if(em&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){toast("That email doesn't look right");return false}
+    settings.builder_email=em;["project","site_address","work_location","building","level","leader","hazards","notes"].forEach(k=>settings[k]=b.querySelector("#s_"+k).value);
+    markSettings();soon(0);toast("Settings saved");
+  });
+}
+
+/* ---------- calendar (All days) ---------- */
+function calendar(){
+  if(!calM)calM=cur.slice(0,7);
+  const [y,m]=calM.split("-").map(Number),first=new Date(y,m-1,1),lead=(first.getDay()+6)%7,n=new Date(y,m,0).getDate(),t=sydToday();
+  let cells="";for(let i=0;i<lead;i++)cells+='<span class="x"></span>';
+  for(let dd=1;dd<=n;dd++){const k=`${y}-${String(m).padStart(2,"0")}-${String(dd).padStart(2,"0")}`,st=dayStatus(k);
+    cells+=`<button type="button" data-k="${k}" class="${st} ${k===t?"today":""} ${k===cur?"cur":""}" aria-label="${esc(nice(k))}, ${st==="done"?"completed":st==="wip"?"published":st==="draft"?"draft":"no pre-start"}">${dd}</button>`}
+  const body=`<div class="calnav"><button type="button" id="cp" aria-label="Previous month">&lsaquo;</button><b>${esc(first.toLocaleDateString("en-AU",{month:"long",year:"numeric"}))}</b><button type="button" id="cn" aria-label="Next month">&rsaquo;</button></div>
+    <div class="cal">${["Mo","Tu","We","Th","Fr","Sa","Su"].map(x=>`<div class="h">${x}</div>`).join("")}${cells}</div>
+    <div class="legend"><span><i style="background:var(--ok)"></i>Completed</span><span><i style="background:var(--wip)"></i>Published</span><span><i style="border:2px dashed var(--muted)"></i>Draft</span></div>
+    <div class="btns"><button class="btn" id="ct" type="button">Go to today</button><button class="btn" id="cs" type="button">Settings</button></div>
+    <div class="acct"><span>${esc((storedUser()||{}).email||"")}${pending()?" · "+pending()+" change(s) waiting to save":""}</span><button class="del" id="lo" type="button">Log out</button></div>
+    <div class="empty" style="font-size:12px;text-align:right">Pre-Start ${APP_VERSION}</div>`;
+  sheet("All days",body,null,null,b=>{
+    b.querySelector("#lo").onclick=logout;b.querySelector("#cs").onclick=settingsSheet;
+    const mv=d=>{const dt=new Date(y,m-1+d,1);calM=`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}`;calendar()};
+    b.querySelector("#cp").onclick=()=>mv(-1);b.querySelector("#cn").onclick=()=>mv(1);
+    b.querySelector("#ct").onclick=()=>{$("#dlg").close();go(sydToday())};
+    b.querySelectorAll("[data-k]").forEach(x=>x.onclick=()=>{$("#dlg").close();go(x.dataset.k)});
+  });
+}
+function go(s){cur=s;try{history.replaceState(null,"","#"+s)}catch(e){}render();loadSigs(cur)}
+
+/* ---------- login (same as the diary) ---------- */
+function showLogin(on){$("#login").hidden=!on;document.body.classList.toggle("auth",!!on);if(on)setTimeout(()=>{try{$("#lgEmail").focus()}catch(e){}},50)}
+function lgErr(t,ok){const e=$("#lgErr");e.textContent=t||"";e.hidden=!t;e.classList.toggle("ok",!!ok)}
+$("#lgForm").onsubmit=async e=>{e.preventDefault();
+  const email=$("#lgEmail").value.trim(),password=$("#lgPw").value;
+  if(!email||!password){lgErr("Enter your email and password");return}
+  if(!sb){lgErr("Couldn't load the login. Check your signal and reload.");return}
+  $("#lgBtn").disabled=true;$("#lgBtn").textContent="Logging in";lgErr("");
+  try{const {error}=await sb.auth.signInWithPassword({email,password});
+    if(error){lgErr(/invalid/i.test(error.message)?"Wrong email or password":/fetch|network/i.test(error.message)?"No signal. Try again when you're online.":error.message);return}
+    $("#lgPw").value="";showLogin(false);await pull();
+  }catch(x){lgErr("No signal. Try again when you're online.")}
+  finally{$("#lgBtn").disabled=false;$("#lgBtn").textContent="Log in"}
+};
+$("#lgForgot").onclick=async()=>{
+  const email=$("#lgEmail").value.trim();if(!email){lgErr("Type your email above first");return}
+  try{const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+    if(error)throw error;lgErr("If that's your account, a reset link is on its way. Open it on this phone.",true)}catch(x){lgErr("Couldn't send the email. Try again later.")}
+};
+function newPassword(){
+  sheet("Set a new password",`<label>New password<input type="password" id="np" autocomplete="new-password" minlength="8"></label><div class="empty">At least 8 characters.</div>`,"Save password",async b=>{
+    const pw=b.querySelector("#np").value;if(pw.length<8){toast("Use at least 8 characters");return false}
+    const {error}=await sb.auth.updateUser({password:pw});if(error){toast(error.message);return false}
+    toast("Password changed");
+  });
+}
+async function logout(){
+  if(pending()&&!confirm("Some changes haven't been saved online yet (no signal). Logging out now will lose them. Log out anyway?"))return;
+  try{$("#dlg").close()}catch(e){}
+  try{await sb.auth.signOut({scope:"local"})}catch(e){}
+  [LSC,LSQ,AUTH_KEY].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}});
+  settings={...DEF_SETTINGS};people=[];days={};sigs={};outbox={days:{},settings:null};pulled=false;render();showLogin(true);
+}
+
+function supervisorMain(){
+  $(".top .r2").hidden=false;$("#bar").hidden=false;$("#pdfBtn").hidden=false;
+  loadCache();
+  const h0=(location.hash||"").slice(1);cur=isDate(h0)?h0:sydToday();
+  render();
+  if(!storedUser()&&!/access_token|type=recovery/.test(location.hash))showLogin(true);
+  if(sb){
+    sb.auth.onAuthStateChange((ev,session)=>{
+      if(ev==="PASSWORD_RECOVERY"){showLogin(false);setTimeout(newPassword,300)}
+      else if(ev==="SIGNED_OUT"){showLogin(true)}
+      else if(session&&ev==="SIGNED_IN"&&!$("#login").hidden){showLogin(false);pull()}
+    });
+    if(storedUser())pull();
+  }
+  $("#histBtn").onclick=()=>{calM=cur.slice(0,7);calendar()};
+  $("#date").onclick=()=>{calM=cur.slice(0,7);calendar()};
+  $("#prev").onclick=()=>go(shift(cur,-1));
+  $("#next").onclick=()=>go(shift(cur,1));
+  $("#pdfBtn").onclick=pdfSheet;
+  document.querySelectorAll("[data-act]").forEach(b=>b.onclick=()=>({
+    qr:()=>{const r=rec();if(r.completed_at){toast("This day is completed. Sign-ins are closed.");return}r.published_at?showQR(r):publish()},
+    att:()=>{const c=$("#attCard");if(c)c.scrollIntoView({behavior:"smooth",block:"start"});else toast("Publish the day first. Attendance shows up here once people sign.")},
+    people:peopleSheet,complete:completeFlow})[b.dataset.act]());
+  window.addEventListener("online",()=>{pull()});
+  window.addEventListener("offline",finalStatus);
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")pull();else flush()});
+  setInterval(()=>{if(!pulled&&storedUser())pull();else if(pending())flush()},30000);
+  poll();
+}
+
+/* ---------- no zoom (iPhone ignores the viewport setting, so block the gestures) ---------- */
+["gesturestart","gesturechange","gestureend"].forEach(t=>document.addEventListener(t,e=>e.preventDefault(),{passive:false}));
+["touchstart","touchmove"].forEach(t=>document.addEventListener(t,e=>{if((e.touches&&e.touches.length>1)||(e.scale!==undefined&&e.scale!==1))e.preventDefault()},{passive:false,capture:true}));
+(()=>{const vp=document.querySelector('meta[name=viewport]'),base=vp.content;let busy=false;
+  const reset=()=>{if(busy||!window.visualViewport||visualViewport.scale<=1.01)return;busy=true;
+    vp.content=base.replace("maximum-scale=1","maximum-scale=1.01");setTimeout(()=>{vp.content=base;window.scrollTo(0,window.scrollY);busy=false},60)};
+  if(window.visualViewport){visualViewport.addEventListener("resize",reset);visualViewport.addEventListener("scroll",()=>{if(visualViewport.offsetLeft>0)reset()})}
+  document.addEventListener("focusout",()=>setTimeout(reset,100));
+  document.addEventListener("touchend",()=>setTimeout(reset,50));
+})();
+document.addEventListener("focusout",()=>{setTimeout(()=>{if(window.scrollX)window.scrollTo(0,window.scrollY)},50)});
+
+/* ---------- start ---------- */
+(()=>{const m=(location.hash||"").slice(1).match(WORKER_RE);
+  if(m)workerMain(m[1],m[2]);else supervisorMain();
+  window.addEventListener("hashchange",()=>{const s=(location.hash||"").slice(1);
+    if(WORKER_RE.test(s)||document.body.classList.contains("worker"))location.reload();
+    else if(isDate(s)&&s!==cur)go(s)});
+})();
+if("serviceWorker" in navigator&&(location.protocol==="https:"||location.hostname==="localhost"))navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>
