@@ -291,7 +291,7 @@ const DEF_SETTINGS={project:"Greenwich Hospital",site_address:"97-115 River Rd G
 
 /* ---------- Supabase connection. The publishable key is safe in the browser: tables are owner-only (RLS);
    workers can only call get_prestart and sign_prestart, which check today's QR code. ---------- */
-const APP_VERSION="v14";
+const APP_VERSION="v15";
 const SB_URL="https://aovloludvrjwiymwdyyp.supabase.co";
 const SB_KEY="sb_publishable_E63eM0gvd1phMBaAnXLQJA_QxZ4z4qc";
 const AUTH_KEY="sitePrestart.auth",LSC="sitePrestart.cache.v1",LSQ="sitePrestart.outbox.v1",LSG="sitePrestart.geo";
@@ -936,7 +936,7 @@ function completeFlow(){
   const n=(sigs[cur]||[]).length;
   sheet("Complete pre-start",`<div class="empty">${n} ${n===1?"person has":"people have"} signed. Once you complete it, sign-ins close and the PDF is made.</div>
     ${sups.length?`<label>Site supervisor / person responsible<select id="cSup" style="font-weight:600">${(()=>{const want=(r.supervisor_name||"").toLowerCase(),hit=(want&&sups.find(x=>(x.name||"").toLowerCase()===want))||sups.find(x=>x.is_me)||sups[0];
-        return sups.map((x,i)=>`<option value="${i}" ${x===hit?"selected":""}>${esc(x.name||x.email)}${x.is_me?" (you)":""}</option>`).join("")})()}</select></label>
+        return sups.map((x,i)=>`<option value="${i}" ${x===hit?"selected":""}>${esc(x.name||"Supervisor (name not set)")}${x.is_me?" (you)":""}</option>`).join("")})()}</select></label>
       <label id="cNameWrap">Name to print on the PDF<input type="text" id="cName" autocomplete="name" autocapitalize="words"></label>`
       :`<label>Site supervisor / person responsible<input type="text" id="cName" value="${esc(r.supervisor_name||r.leader||"")}" autocomplete="name" autocapitalize="words"></label>`}
     <div><div class="empty" style="margin-bottom:6px">Your signature</div>${padHTML("cSig")}</div>
@@ -1055,7 +1055,7 @@ function peopleSheet(){
 function settingsSheet(){
   const s=settings;
   const me=sups.find(x=>x.is_me);
-  sheet("Settings",`${me?`<label>Your name as supervisor (shown when completing a pre-start)<input type="text" id="sMe" value="${esc(me.name)}" autocomplete="name" autocapitalize="words" placeholder="${esc(me.email)}"></label>`:""}
+  sheet("Settings",`${me?`<label>Your name as supervisor (shown when completing a pre-start)<input type="text" id="sMe" value="${esc(me.name)}" autocomplete="name" autocapitalize="words" placeholder="Type your name"></label>`:""}
     <label>Builder's email (for sending the PDF)<input type="email" id="sEmail" value="${esc(s.builder_email)}" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="name@builder.com.au"></label>
     <div class="empty">New days start with these:</div>
     <label>Project<input type="text" id="s_project" value="${esc(s.project)}"></label><label>Site address<input type="text" id="s_site_address" value="${esc(s.site_address)}"></label>
