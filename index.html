@@ -289,7 +289,7 @@ const DEF_SETTINGS={project:"Greenwich Hospital",site_address:"97-115 River Rd G
 
 /* ---------- Supabase connection. The publishable key is safe in the browser: tables are owner-only (RLS);
    workers can only call get_prestart and sign_prestart, which check today's QR code. ---------- */
-const APP_VERSION="v7";
+const APP_VERSION="v8";
 const SB_URL="https://aovloludvrjwiymwdyyp.supabase.co";
 const SB_KEY="sb_publishable_E63eM0gvd1phMBaAnXLQJA_QxZ4z4qc";
 const AUTH_KEY="sitePrestart.auth",LSC="sitePrestart.cache.v1",LSQ="sitePrestart.outbox.v1",LSG="sitePrestart.geo";
@@ -557,11 +557,9 @@ function wStep2(){
   <section class="card"><h2>Acknowledgment</h2><div class="empty" style="margin-top:-6px">By signing you are stating that</div>
     <div class="box3">${BOXES.map(b=>`<section><h3>${esc(b.t)}</h3><ol>${b.items.map(i=>`<li>${esc(i)}</li>`).join("")}</ol></section>`).join("")}</div></section>
   <section class="card"><h2>Your name</h2>
-    <div id="wPickWrap"${d.people.length?"":" hidden"}><input type="search" id="wQ" placeholder="Search your name" autocomplete="off" autocapitalize="words" spellcheck="false" aria-label="Search your name">
-      <div class="names" id="wNames" role="list" style="margin-top:8px"></div>
-      <button type="button" class="ghost" id="wNotListed" style="width:100%;margin-top:8px">My name isn't listed</button></div>
+    <div id="wPickWrap"${d.people.length?"":" hidden"}><select id="wSel" aria-label="Select your name" style="font-weight:600"></select></div>
     <div id="wTypeWrap"${d.people.length?" hidden":""}><label>Type your full name<input type="text" id="wTyped" maxlength="60" autocomplete="name" autocapitalize="words" spellcheck="false"></label>
-      ${d.people.length?`<button type="button" class="del" id="wBackList" style="align-self:flex-start;padding:0">‹ Pick from the list instead</button>`:""}</div>
+      ${d.people.length?`<button type="button" class="del" id="wBackList" style="align-self:flex-start;padding:0;margin-top:6px">‹ Pick from the list instead</button>`:""}</div>
   </section>
   <section class="card"><h2>Your signature</h2>${padHTML("wSig")}</section>
   <div id="wErr" class="err" role="alert" hidden></div>
@@ -569,13 +567,15 @@ function wStep2(){
   <button class="btn" id="wBack">‹ Back to the pre-start</button>`;
   if(!d.people.length)W.typed=true;
   W.pad=sigPad($("#wSig"));$("#wSig").addEventListener("sig",()=>wErr(""));$("#wTyped").oninput=()=>wErr("");$("[data-clear=wSig]").onclick=()=>W.pad.clear();
-  const draw=()=>{const q=$("#wQ").value.trim().toLowerCase();const P=d.people.filter(p=>!q||p.name.toLowerCase().includes(q));
-    $("#wNames").innerHTML=P.length?P.map(p=>`<button type="button" role="listitem" data-id="${esc(p.id)}" aria-pressed="${W.pick===p.id}" ${p.signed?"disabled":""}><span>${esc(p.name)}</span>${p.signed?"<small>signed</small>":W.pick===p.id?"<span>✓</span>":""}</button>`).join("")
-      :`<div class="empty">No name matches. Tap "My name isn't listed" below.</div>`;
-    $("#wNames").querySelectorAll("[data-id]").forEach(b=>b.onclick=()=>{W.pick=b.dataset.id;W.typed=false;draw();$("#wErr").hidden=true})};
-  draw();$("#wQ").oninput=draw;
+  const NOT="__notlisted__";
+  const draw=()=>{const sel=$("#wSel");
+    sel.innerHTML=`<option value="">Select your name</option>${d.people.map(p=>`<option value="${esc(p.id)}" ${p.signed?"disabled":""}>${esc(p.name)}${p.signed?" (signed)":""}</option>`).join("")}<option value="${NOT}">My name isn't listed</option>`;
+    sel.value=W.pick&&d.people.some(p=>p.id===W.pick&&!p.signed)?W.pick:""};
   const showType=on=>{W.typed=on;if(on)W.pick=null;$("#wPickWrap").hidden=on;$("#wTypeWrap").hidden=!on;if(on)setTimeout(()=>$("#wTyped").focus(),50);else draw()};
-  $("#wNotListed").onclick=()=>showType(true);const bl=$("#wBackList");if(bl)bl.onclick=()=>showType(false);
+  draw();
+  $("#wSel").onchange=()=>{const v=$("#wSel").value;wErr("");if(v===NOT){showType(true);return}W.pick=v||null;W.typed=false};
+  const bl=$("#wBackList");if(bl)bl.onclick=()=>showType(false);
+  W.redraw=draw;
   $("#wBack").onclick=wStep1;
   $("#wSign").onclick=wSign;
 }
@@ -583,7 +583,7 @@ function wErr(t){const e=$("#wErr");e.textContent=t;e.hidden=!t;if(t)try{e.scrol
 async function wSign(){
   const btn=$("#wSign");if(btn.disabled)return;
   const typed=W.typed?$("#wTyped").value.replace(/\s+/g," ").trim():"";
-  if(!W.typed&&!W.pick){wErr("Pick your name from the list (or tap \"My name isn't listed\").");return}
+  if(!W.typed&&!W.pick){wErr("Select your name (or choose \"My name isn't listed\").");return}
   if(W.typed&&typed.length<2){wErr("Type your full name.");return}
   if(W.pad.empty()){wErr("Sign in the box with your finger.");return}
   const png=W.pad.png();if(!png){wErr(WERR.signature);return}
@@ -598,7 +598,7 @@ async function wSign(){
   if(["invalid","expired","locked","closed"].includes(d.error)){wMsg(d.error==="closed"?"Today's pre-start is closed":"This QR code doesn't work today",WERR[d.error]);return}
   wErr(WERR[d.error]||"Something went wrong. Try again.");
 }
-async function refreshNames(){const {d}=await wFetch();if(d&&!d.error){W.d.people=d.people;W.pick=null;const q=$("#wQ");if(q)q.dispatchEvent(new Event("input"))}}
+async function refreshNames(){const {d}=await wFetch();if(d&&!d.error){W.d.people=d.people;W.pick=null;if(W.redraw&&$("#wSel"))W.redraw()}}
 function wDone(name,at){
   window.scrollTo(0,0);
   $("#app").innerHTML=`<section class="card"><div class="donebox"><div class="done-ic">✓</div><div class="h">Signed</div>
