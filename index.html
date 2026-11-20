@@ -270,14 +270,13 @@ const DEF_NOTES=[
  "Operators must hold the required licences/tickets and conduct pre-start inspections. Defective tools, lifting gear, or equipment must be tagged out and reported immediately.",
  "All incidents, near misses, hazards, damaged equipment, and property damage must be reported immediately.",
  "Workers must be fit for work and notify supervision if affected by fatigue, medication, drugs, alcohol, illness, or any condition that may impact their ability to work safely."].join("\n");
-const FOOTER="OHSE 13 - Daily Prestart - Rev 2";
 const DEF_SETTINGS={project:"Greenwich Hospital",site_address:"97-115 River Rd Greenwich",work_location:"SLN",building:"SLN",level:"",leader:"",hazards:DEF_HAZARDS,notes:DEF_NOTES,builder_email:""};
 
 /* ---------- Supabase connection. The publishable key is safe in the browser: tables are owner-only (RLS);
    workers can only call get_prestart and sign_prestart, which check today's QR code. ---------- */
 const APP_VERSION="v1";
-const SB_URL="__SB_URL__";
-const SB_KEY="__SB_KEY__";
+const SB_URL="https://aovloludvrjwiymwdyyp.supabase.co";
+const SB_KEY="sb_publishable_E63eM0gvd1phMBaAnXLQJA_QxZ4z4qc";
 const AUTH_KEY="sitePrestart.auth",LSC="sitePrestart.cache.v1",LSQ="sitePrestart.outbox.v1",LSG="sitePrestart.geo";
 let sb=null;
 try{sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:AUTH_KEY}})}catch(e){console.error(e)}
@@ -360,84 +359,88 @@ function newToken(){const A="ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456
 const pdfClean=s=>String(s==null?"":s).replace(/[‘’]/g,"'").replace(/[“”]/g,'"').replace(/[–—]/g,"-").replace(/…/g,"...").replace(/[^\x09\x0A\x0D\x20-\x7E\xA0-\xFF]/g,"");
 const imgSize=src=>new Promise(res=>{const i=new Image();i.onload=()=>res([i.naturalWidth||1,i.naturalHeight||1]);i.onerror=()=>res(null);i.src=src});
 function pdfKit(){
-  const doc=new window.jspdf.jsPDF({unit:"mm",format:"a4"}),W=210,M=12,CW=W-2*M,BOT=281,GREY=[217,217,217];
-  const k={doc,W,M,CW,BOT,y:M};
+  const doc=new window.jspdf.jsPDF({unit:"mm",format:"a4"}),W=210,M=18,CW=W-2*M,BOT=278,GREY=[232,232,232];
+  const k={doc,W,M,CW,BOT,y:12};
   k.font=(st,sz)=>{doc.setFont("helvetica",st);doc.setFontSize(sz)};
   k.lh=sz=>sz*.3528*1.22;
-  k.header=()=>{
-    try{doc.addImage(LOGO,"PNG",M,k.y+1,46,46*LOGO_R)}catch(e){k.font("bold",16);doc.text("transform.",M,k.y+8)}
-    const bw=78,bx=W-M-bw;doc.setDrawColor(0);doc.setLineWidth(.5);doc.rect(bx,k.y,bw,12);k.font("bold",13);doc.setTextColor(0);doc.text("DAILY PRE-START MEETING",bx+bw/2,k.y+7.9,{align:"center"});
-    doc.setLineWidth(.25);k.y+=17};
-  k.newPage=()=>{doc.addPage();k.y=M;k.header()};
+  k.header=()=>{ // logo box + title box, like the template header
+    const y=10,h=24,lw=CW*.63;doc.setDrawColor(0);doc.setLineWidth(.4);doc.rect(M,y,lw,h);doc.rect(M+lw,y,CW-lw,h);
+    try{const w=78;doc.addImage(LOGO,"PNG",M+(lw-w)/2,y+(h-w*LOGO_R)/2,w,w*LOGO_R)}catch(e){k.font("bold",22);doc.text("transform.",M+8,y+15)}
+    k.font("bold",15);doc.setTextColor(0);doc.text(["DAILY PRE-START","MEETING"],M+lw+(CW-lw)/2,y+10.2,{align:"center"});
+    doc.setLineWidth(.25);k.y=y+h+7};
+  k.newPage=()=>{doc.addPage();k.header()};
+  k.fresh=()=>k.y<=10+24+7.5;
   k.ensure=h=>{if(k.y+h>BOT){k.newPage();return true}return false};
   k.cellLines=(c,w)=>{if(c.text==null||c.img)return[];k.font(c.bold?"bold":c.italic?"italic":"normal",c.size||8.5);return doc.splitTextToSize(pdfClean(c.text),w-3)};
-  /* a table row: cells=[{w,text,fill,bold,italic,align,size,img,draw}] */
+  /* a table row: cells=[{w (fraction of CW or mm),text,fill,bold,italic,align,top,size,img,draw}] */
   k.row=(cells,minH=6.5,opt={})=>{
-    let h=minH;cells.forEach(c=>{const L=k.cellLines(c,c.w);h=Math.max(h,L.length*k.lh(c.size||8.5)+2.6)});
+    cells=cells.map(c=>({...c,w:c.w<=1?c.w*CW:c.w}));
+    let h=minH;cells.forEach(c=>{const L=k.cellLines(c,c.w);h=Math.max(h,L.length*k.lh(c.size||8.5)+2.4)});
     if(k.ensure(h)&&opt.onBreak)opt.onBreak();
     let x=M;cells.forEach(c=>{
       doc.setDrawColor(0);doc.setLineWidth(.25);
       if(c.fill){doc.setFillColor(...c.fill);doc.rect(x,k.y,c.w,h,"FD")}else doc.rect(x,k.y,c.w,h);
-      const L=k.cellLines(c,c.w),sz=c.size||8.5,lh=k.lh(sz);doc.setTextColor(...(c.color||[0,0,0]));
-      const ty=k.y+(h-L.length*lh)/2+lh*.78;
-      L.forEach((l,i)=>doc.text(l,c.align==="center"?x+c.w/2:x+1.6,ty+i*lh,{align:c.align==="center"?"center":"left"}));
-      if(c.img&&c.img.src){const [iw,ih]=c.img.size||[3,1],mw=c.w-2,mh=h-1.4,s=Math.min(mw/iw,mh/ih);try{doc.addImage(c.img.src,"PNG",x+1+(mw-iw*s)/2,k.y+.7+(mh-ih*s)/2,iw*s,ih*s)}catch(e){}}
+      const L=k.cellLines(c,c.w),sz=c.size||8.5,lh=k.lh(sz);doc.setTextColor(0);
+      const ty=c.top?k.y+lh*.85+.6:k.y+(h-L.length*lh)/2+lh*.78;
+      L.forEach((l,i)=>doc.text(l,c.align==="center"?x+c.w/2:x+1.5,ty+i*lh,{align:c.align==="center"?"center":"left"}));
+      if(c.img&&c.img.src){const [iw,ih]=c.img.size||[3,1],mw=c.w-2,mh=h-1,s=Math.min(mw/iw,mh/ih);try{doc.addImage(c.img.src,"PNG",x+1+(mw-iw*s)/2,k.y+.5+(mh-ih*s)/2,iw*s,ih*s)}catch(e){}}
       if(c.draw)c.draw(x,k.y,c.w,h);
       x+=c.w});
-    doc.setTextColor(0);k.y+=h;return h};
-  k.footer=()=>{const n=doc.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);k.font("normal",8);doc.setTextColor(60);doc.text(FOOTER,M,291);doc.text(`Page | ${i}`,W-M,291,{align:"right"})}doc.setTextColor(0)};
-  k.box=(x,y,on)=>{doc.setLineWidth(.3);doc.rect(x,y,3.2,3.2);if(on){doc.setLineWidth(.45);doc.line(x+.6,y+.6,x+2.6,y+2.6);doc.line(x+2.6,y+.6,x+.6,y+2.6)}doc.setLineWidth(.25)};
+    k.y+=h;return h};
+  k.footer=()=>{const n=doc.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);k.font("normal",7.5);doc.setTextColor(90);doc.text(`Page | ${i}`,M+3,287);doc.text("OHSE 13- Daily Prestart – Rev 2",M+3,290.6)}doc.setTextColor(0)};
+  k.box=(x,y,on)=>{doc.setLineWidth(.3);doc.rect(x,y,2.8,2.8);if(on){doc.setLineWidth(.45);doc.line(x+.5,y+.5,x+2.3,y+2.3);doc.line(x+2.3,y+.5,x+.5,y+2.3)}doc.setLineWidth(.25)};
   k.GREY=GREY;return k;
 }
 async function buildPDF(r,sigs){
   if(!window.jspdf)throw new Error("The PDF tool didn't load. Reload the app.");
   const k=pdfKit(),{doc,M,CW}=k,G=k.GREY;k.header();
-  // Opening acknowledgement paragraph
-  k.font("normal",8.5);const P=doc.splitTextToSize(pdfClean(ACK_TEXT),CW);doc.text(P,M,k.y+3);k.y+=P.length*k.lh(8.5)+4;
-  // Header info table
-  const L=(t,w)=>({w,text:t,fill:G,bold:true,size:8});
-  k.row([L("PROJECT TITLE:",30),{w:63,text:r.project},L("DATE:",30),{w:63,text:dmy(r.day)}],7);
-  k.row([L("SITE ADDRESS:",30),{w:63,text:r.site_address},L("WEATHER FORECAST:",30),{w:63,text:r.weather}],7);
-  k.row([L("WORK LOCATION:",30),{w:32,text:r.work_location},L("BUILDING:",24),{w:38,text:r.building},L("LEVEL:",22),{w:40,text:r.level}],7);
-  k.row([L("SUPERVISOR / PERSON LEADING MEETING:",70),{w:116,text:r.leader}],7);
-  k.y+=4;
-  // Issues
-  k.row([{w:144,text:"ANY ISSUES ARISING FROM PREVIOUS DAY? If YES please state",fill:G,bold:true,size:8},{w:42,fill:G,draw:(x,y,w,h)=>{
-    const cy=y+h/2-1.6;k.box(x+5,cy,r.issues===true);k.font("bold",8);doc.text("YES",x+9.6,cy+2.7);k.box(x+22,cy,r.issues===false);doc.text("NO",x+26.6,cy+2.7)}}],7);
-  const iss=lines(r.issues_details);for(let i=0;i<Math.max(3,iss.length);i++)k.row([{w:CW,text:iss[i]||""}],6);
-  k.font("italic",8);k.ensure(6);doc.text(pdfClean(SWMS_NOTE),M,k.y+4);k.y+=7;
-  // Planned work
-  const listBlock=(title,items,min)=>{const hdr=()=>k.row([{w:CW,text:title,fill:G,bold:true,align:"center",size:8.5}],7);
-    k.ensure(7+6.5*Math.min(2,Math.max(min,items.length)));hdr();
-    for(let i=0;i<Math.max(min,items.length);i++)k.row([{w:CW,text:items[i]||""}],6.5,{onBreak:hdr});k.y+=4};
+  /* ---- page 1: details, issues, planned work, hazards ---- */
+  const L=(t,w)=>({w,text:t,fill:G,bold:true,size:7,top:true}),V=(t,w)=>({w,text:t,size:8,top:true});
+  k.row([L("PROJECT TITLE",.343),V(r.project,.316),L("DATE",.168),V(dmy(r.day),.173)],7);
+  k.row([L("SITE ADDRESS",.343),V(r.site_address,.316),L("WEATHER FORECAST",.168),V(r.weather,.173)],7);
+  k.row([L("WORK LOCATION",.343),V(r.work_location,.217),L("BUILDING",.095),V(r.building,.088),L("LEVEL",.084),V(r.level,.173)],7);
+  k.row([L("SUPERVISOR / PERSON LEADING MEETING",.343),V(r.leader,.657)],7);
+  k.y+=8;
+  k.row([{w:.64,fill:G,draw:(x,y)=>{k.font("bold",8.5);const a="ANY ISSUES ARISING FROM PREVIOUS DAY? ";doc.text(a,x+5,y+4.6);const aw=doc.getTextWidth(a)+.9;k.font("bolditalic",8.5);doc.text("If YES please state",x+5+aw,y+4.6)}},
+    {w:.36,draw:(x,y,w)=>{k.box(x+1.5,y+2.1,r.issues===true);k.font("bold",7.5);doc.text("YES",x+5.2,y+4.4);k.box(x+w-12,y+2.1,r.issues===false);doc.text("NO",x+w-8.3,y+4.4)}}],7);
+  const iss=lines(r.issues_details);for(let i=0;i<Math.max(3,iss.length);i++)k.row([{w:1,text:iss[i]||"",size:8}],7);
+  k.row([{w:1,text:SWMS_NOTE,italic:true,size:7}],6);
+  const listBlock=(title,items,min)=>{const hdr=()=>k.row([{w:1,text:title,fill:G,bold:true,align:"center",size:8.5}],7);
+    k.ensure(7+7*Math.min(2,Math.max(min,items.length)));hdr();
+    for(let i=0;i<Math.max(min,items.length);i++)k.row([{w:1,text:items[i]||"",size:8,top:true}],7,{onBreak:hdr})};
   listBlock("PLANNED WORK ACTIVITIES / TASKS TO BE CARRIED OUT TODAY",lines(r.planned),5);
   listBlock("HAZARDS & CONTROL MEASURES",lines(r.hazards),7);
-  // Acknowledgement three boxes
-  const cw=CW/3;k.font("normal",7.6);
-  const colH=BOXES.map(b=>b.items.reduce((a,t,i)=>a+doc.splitTextToSize(`${i+1}. ${t}`,cw-3).length*k.lh(7.6)+.8,0)+2);
-  k.ensure(7+6+Math.max(...colH));
-  k.row([{w:CW,fill:G,draw:(x,y,w,h)=>{k.font("bold",8.5);doc.text("Acknowledgment",x+w/2,y+3.6,{align:"center"});k.font("normal",8);doc.text("By signing you are stating that",x+w/2,y+7.2,{align:"center"})}}],9);
-  k.row(BOXES.map(b=>({w:cw,text:b.t,bold:true,align:"center",size:8.5})),6);
-  k.row(BOXES.map((b,j)=>({w:cw,draw:(x,y)=>{k.font("normal",7.6);let yy=y+3;b.items.forEach((t,i)=>{const T=doc.splitTextToSize(`${i+1}. ${pdfClean(t)}`,cw-3);doc.text(T,x+1.5,yy);yy+=T.length*k.lh(7.6)+.8})}})),Math.max(...colH));
-  k.y+=4;
-  // Other notes
-  const notes=lines(r.notes);const nh=()=>k.row([{w:CW,text:"OTHER NOTES",fill:G,bold:true,align:"center",size:8.5}],7);
-  k.ensure(20);nh();notes.forEach(n=>k.row([{w:6,text:"•",align:"center"},{w:CW-6,text:n,size:8}],5.5,{onBreak:nh}));if(!notes.length)k.row([{w:CW,text:""}],6);
-  k.y+=4;
-  // Attendance: two people per row
+  /* ---- page 2: acknowledgement boxes, other notes ---- */
+  if(!k.fresh())k.newPage();
+  const cw=CW/3,isz=7.8,ilh=k.lh(isz);k.font("normal",isz);
+  const wrapItems=b=>b.items.map((t,i)=>({n:`${i+1}.`,L:doc.splitTextToSize(pdfClean(t),cw-7)}));
+  const colH=BOXES.map(b=>wrapItems(b).reduce((a,it)=>a+it.L.length*ilh+.6,0)+7);
+  k.row([{w:1,fill:G,draw:(x,y,w)=>{k.font("bold",8.5);doc.text("Acknowledgment",x+w/2,y+3.7,{align:"center"});doc.text("By signing you are stating that",x+w/2,y+7.4,{align:"center"})}}],9);
+  k.row(BOXES.map(b=>({w:cw,draw:(x,y)=>{k.font("bold",8);doc.text(b.t,x+1.5,y+3.6);doc.setLineWidth(.2);doc.line(x+1.5,y+4.2,x+1.5+doc.getTextWidth(b.t),y+4.2);doc.setLineWidth(.25);
+    k.font("normal",isz);let yy=y+7.6;wrapItems(b).forEach(it=>{doc.text(it.n,x+2.2,yy);doc.text(it.L,x+6,yy);yy+=it.L.length*ilh+.6})}})),Math.max(...colH));
+  k.y+=6;
+  const notes=lines(r.notes),nsz=8,nlh=k.lh(nsz);k.font("normal",nsz);
+  const NL=notes.map(n=>doc.splitTextToSize(pdfClean(n),CW-7));
+  const nH=Math.max(40,NL.reduce((a,l)=>a+l.length*nlh+1,0)+4);
+  const nh=()=>k.row([{w:1,text:"OTHER NOTES",fill:G,bold:true,align:"center",size:8.5}],6);
+  if(k.y+6+nH<=k.BOT){nh();k.row([{w:1,draw:(x,y)=>{k.font("normal",nsz);let yy=y+3.6;NL.forEach(l=>{doc.text("•",x+1.8,yy);doc.text(l,x+5,yy);yy+=l.length*nlh+1})}}],nH)}
+  else{nh();NL.forEach(l=>k.row([{w:1,draw:(x,y)=>{k.font("normal",nsz);doc.text("•",x+1.8,y+3.6);doc.text(l,x+5,y+3.6)}}],l.length*nlh+2.4,{onBreak:nh}))}
+  /* ---- page 3: attendance (two people per row), sign-off, acknowledgement paragraph ---- */
+  k.newPage();
   const S=await Promise.all((sigs||[]).map(async s=>({...s,size:await imgSize(s.signature)})));
-  const rows=Math.max(34,Math.ceil(S.length/2)),aw=CW/4;
-  const ah=()=>{k.row([{w:CW,text:"Attendance",fill:G,bold:true,align:"center",size:9}],7);k.row(["Print Name","Signature","Print Name","Signature"].map(t=>({w:aw,text:t,fill:G,bold:true,align:"center",size:8})),6)};
-  k.ensure(13+9*3);ah();
-  const person=s=>s?{w:aw,draw:(x,y,w,h)=>{k.font("normal",8.5);const T=doc.splitTextToSize(pdfClean(s.name),w-3).slice(0,2);doc.text(T,x+1.6,y+3.6);
-      k.font("normal",6.5);doc.setTextColor(110);doc.text(fmtTime(s.signed_at),x+w-1.4,y+h-1.2,{align:"right"});doc.setTextColor(0)}}:{w:aw};
-  const sig=s=>s?{w:aw,img:{src:s.signature,size:s.size}}:{w:aw};
-  for(let i=0;i<rows;i++){const a=S[2*i],b=S[2*i+1];k.row([person(a),sig(a),person(b),sig(b)],9,{onBreak:ah})}
+  const rows=Math.max(34,Math.ceil(S.length/2)),wn=.31,ws=.19,rh=5.6;
+  const ah=()=>{k.row([{w:1,text:"Attendance",fill:G,bold:true,align:"center",size:8.5}],5);k.row([{w:wn,text:"Print Name",bold:true,align:"center",size:8},{w:ws,text:"Signature",bold:true,align:"center",size:8},{w:wn,text:"Print Name",bold:true,align:"center",size:8},{w:ws,text:"Signature",bold:true,align:"center",size:8}],5)};
+  ah();
+  const person=s=>s?{w:wn,draw:(x,y,w,h)=>{k.font("normal",8);doc.text(doc.splitTextToSize(pdfClean(s.name),w-12)[0]||"",x+1.5,y+h/2+1.1);
+      k.font("normal",6);doc.setTextColor(110);doc.text(fmtTime(s.signed_at),x+w-1.2,y+h/2+1,{align:"right"});doc.setTextColor(0)}}:{w:wn};
+  const sig=s=>s?{w:ws,img:{src:s.signature,size:s.size}}:{w:ws};
+  for(let i=0;i<rows;i++){const a=S[2*i],b=S[2*i+1];k.row([person(a),sig(a),person(b),sig(b)],rh,{onBreak:ah})}
   k.y+=3;
-  // Supervisor sign-off
   let ss=null;if(r.supervisor_signature)ss={src:r.supervisor_signature,size:await imgSize(r.supervisor_signature)};
-  k.row([{w:58,text:"SITE SUPERVISOR/PERSON RESPONSIBLE:",fill:G,bold:true,size:8},{w:56,text:r.supervisor_name||""},{w:22,text:"Signature:",fill:G,bold:true,size:8},{w:50,img:ss}],14);
-  if(r.completed_at){k.font("normal",7);doc.setTextColor(110);doc.text(`Signed off ${dmy(r.day)} at ${fmtTime(r.completed_at)}`,k.W-M,k.y+3.5,{align:"right"});doc.setTextColor(0)}
+  k.ensure(9+16);
+  k.row([{w:.247,text:"SITE SUPERVISOR/PERSON RESPONSIBLE",fill:G,bold:true,size:7,top:true},{w:.284,text:r.supervisor_name||"",size:8.5},{w:.217,text:"Signature",fill:G,bold:true,size:8,top:true},{w:.252,img:ss}],9);
+  if(r.completed_at){k.font("normal",6.5);doc.setTextColor(110);doc.text(`Signed off ${dmy(r.day)} at ${fmtTime(r.completed_at)}`,k.W-M,k.y+3,{align:"right"});doc.setTextColor(0)}
+  k.y+=5;k.font("italic",7.5);const P=doc.splitTextToSize(pdfClean(ACK_TEXT),CW-6);k.ensure(P.length*k.lh(7.5)+2);doc.text(P,M+3,k.y+2.5);
   k.footer();
   return doc.output("blob");
 }
