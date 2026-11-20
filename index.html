@@ -90,6 +90,9 @@ textarea{min-height:84px;resize:vertical}
 .bar{position:fixed;left:50%;transform:translateX(-50%);width:100%;max-width:560px;bottom:0;z-index:6;background:#0b0b0b;padding:8px 10px;padding-bottom:max(8px,env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .bar button{background:#1f1f1f;border:0;border-radius:12px;color:#fff;min-height:56px;font-size:12px;font-weight:600;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer}
 .bar button svg{width:22px;height:22px;stroke:var(--brand);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.bar button.cta{background:#e42424;color:#fff;font-size:13px;font-weight:700}
+.bar button.cta svg{stroke:#fff;stroke-width:2.4}
+.bar button.cta.done{background:#1f8a4c}
 #app.locked .card{opacity:.92}
 #app.locked input:disabled,#app.locked textarea:disabled{opacity:1;-webkit-text-fill-color:var(--ink);cursor:default}
 
@@ -216,7 +219,7 @@ body.worker #bar,body.worker .top .r2,body.worker #pdfBtn{display:none!important
   <button data-act="qr"><svg viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 18h2v2h-2zM14 18h2M18 14h2"/></svg>QR code</button>
   <button data-act="att"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg>Attendance</button>
   <button data-act="people"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.3-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 14.8c1.6.8 2.6 2.5 3 5.2"/></svg>People</button>
-  <button data-act="complete"><svg viewBox="0 0 24 24"><path d="M3 17c3-4 5-4 6-1s3 3 5-1 4-3 7 1"/><path d="M3 21h18"/></svg>Complete</button>
+  <button data-act="complete" class="cta" id="cBtn"><svg viewBox="0 0 24 24"><path d="M3 17c3-4 5-4 6-1s3 3 5-1 4-3 7 1"/><path d="M3 21h18"/></svg><span>Complete</span></button>
 </nav>
 
 <section id="login" hidden aria-labelledby="lgT">
@@ -279,7 +282,7 @@ const DEF_SETTINGS={project:"Greenwich Hospital",site_address:"97-115 River Rd G
 
 /* ---------- Supabase connection. The publishable key is safe in the browser: tables are owner-only (RLS);
    workers can only call get_prestart and sign_prestart, which check today's QR code. ---------- */
-const APP_VERSION="v5";
+const APP_VERSION="v6";
 const SB_URL="https://aovloludvrjwiymwdyyp.supabase.co";
 const SB_KEY="sb_publishable_E63eM0gvd1phMBaAnXLQJA_QxZ4z4qc";
 const AUTH_KEY="sitePrestart.auth",LSC="sitePrestart.cache.v1",LSQ="sitePrestart.outbox.v1",LSG="sitePrestart.geo";
@@ -705,6 +708,7 @@ function render(){
   const r=rec(),locked=!!r.completed_at,pub=!!r.published_at,today=sydToday(),prev=prevDay(cur);
   const canCopy=!locked&&!pub&&prev&&COPY_KEYS.some(k=>JSON.stringify(cp(days[prev][k]))!==JSON.stringify(cp(r[k])));
   $("#app").classList.toggle("locked",locked);
+  {const cb=$("#cBtn");cb.classList.toggle("done",locked);cb.querySelector("svg").innerHTML=locked?'<path d="M4 12l5 5L20 6"/>':'<path d="M3 17c3-4 5-4 6-1s3 3 5-1 4-3 7 1"/><path d="M3 21h18"/>';cb.querySelector("span").textContent=locked?"Completed":"Complete"}
   const hero=`<section class="card hero"><div class="h">${esc(new Date(cur+"T12:00:00").toLocaleDateString("en-AU",{weekday:"long"}))}</div>
     <div class="sub">${esc(nice(cur))}${cur===today?" · today":""}</div>
     <div class="tiles"><div class="tile"><span>Signed</span><b id="tSigned">${pub?(sigs[cur]||[]).length:"-"}</b></div><div class="tile"><span>On the list</span><b>${activePeople().length}</b></div></div>
