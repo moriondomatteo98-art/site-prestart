@@ -28,6 +28,8 @@ create table if not exists public.settings (
   hazards text not null default '',
   notes text not null default '',
   builder_email text not null default '',
+  risk_list jsonb not null default '[]'::jsonb,      -- standard list: [{name, controls[]}]
+  default_risks jsonb not null default '[]'::jsonb,  -- risks a new day starts with: [{name, level, controls[]}]
   updated_at timestamptz not null default now()
 );
 
@@ -53,7 +55,8 @@ create table if not exists public.prestarts (
   issues boolean,                        -- true = YES, false = NO, null = not answered
   issues_details text not null default '',
   planned text not null default '',      -- one item per line
-  hazards text not null default '',      -- one item per line
+  hazards text not null default '',      -- one item per line (made from risks; shown to workers and in the PDF)
+  risks jsonb not null default '[]'::jsonb, -- [{name, level: low|med|high, controls[]}]
   notes text not null default '',        -- one item per line
   token text unique check (token is null or token ~ '^[A-Za-z0-9]{8,64}$'),
   published_at timestamptz,
@@ -221,3 +224,8 @@ Operators must hold the required licences/tickets and conduct pre-start inspecti
 All incidents, near misses, hazards, damaged equipment, and property damage must be reported immediately.
 Workers must be fit for work and notify supervision if affected by fatigue, medication, drugs, alcohol, illness, or any condition that may impact their ability to work safely.$n$)
 on conflict (id) do nothing;
+
+-- Columns added after v1 (for databases made with the first version of this file)
+alter table public.prestarts add column if not exists risks jsonb not null default '[]'::jsonb;
+alter table public.settings add column if not exists risk_list jsonb not null default '[]'::jsonb;
+alter table public.settings add column if not exists default_risks jsonb not null default '[]'::jsonb;

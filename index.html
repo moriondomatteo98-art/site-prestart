@@ -166,6 +166,11 @@ body.auth #bar,body.auth #app{display:none}
 .sig .ph{position:absolute;left:14px;right:14px;bottom:34px;border-top:1.5px dashed #bdbdbd;pointer-events:none}
 .sig .ph::after{content:"Sign here with your finger";position:absolute;left:0;top:4px;color:#9a9a9a;font-size:13px}
 .sig.has .ph::after{content:""}
+.rk{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--bg);display:flex;flex-direction:column;gap:6px}
+.rk .t{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;font-weight:600}
+.rk ul{margin:0;padding-left:18px;color:var(--muted);font-size:14px}
+.pill{display:inline-block;padding:1px 10px;border-radius:99px;font-size:13px;font-weight:600;border:1px solid currentColor;flex:none}
+.pill.low{color:var(--ok)}.pill.med{color:var(--warn)}.pill.high{color:var(--crit)}
 .att{display:flex;flex-direction:column;gap:6px}
 .att .it{display:grid;grid-template-columns:76px minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--bg)}
 .att img{width:76px;height:38px;object-fit:contain;background:#fff;border-radius:4px;border:1px solid var(--line);display:block}
@@ -270,11 +275,11 @@ const DEF_NOTES=[
  "Operators must hold the required licences/tickets and conduct pre-start inspections. Defective tools, lifting gear, or equipment must be tagged out and reported immediately.",
  "All incidents, near misses, hazards, damaged equipment, and property damage must be reported immediately.",
  "Workers must be fit for work and notify supervision if affected by fatigue, medication, drugs, alcohol, illness, or any condition that may impact their ability to work safely."].join("\n");
-const DEF_SETTINGS={project:"Greenwich Hospital",site_address:"97-115 River Rd Greenwich",work_location:"SLN",building:"SLN",level:"",leader:"",hazards:DEF_HAZARDS,notes:DEF_NOTES,builder_email:""};
+const DEF_SETTINGS={project:"Greenwich Hospital",site_address:"97-115 River Rd Greenwich",work_location:"SLN",building:"SLN",level:"",leader:"",hazards:DEF_HAZARDS,notes:DEF_NOTES,builder_email:"",risk_list:[],default_risks:[]};
 
 /* ---------- Supabase connection. The publishable key is safe in the browser: tables are owner-only (RLS);
    workers can only call get_prestart and sign_prestart, which check today's QR code. ---------- */
-const APP_VERSION="v1";
+const APP_VERSION="v2";
 const SB_URL="https://aovloludvrjwiymwdyyp.supabase.co";
 const SB_KEY="sb_publishable_E63eM0gvd1phMBaAnXLQJA_QxZ4z4qc";
 const AUTH_KEY="sitePrestart.auth",LSC="sitePrestart.cache.v1",LSQ="sitePrestart.outbox.v1",LSG="sitePrestart.geo";
@@ -592,12 +597,12 @@ function wDone(name,at){
 /* ======================================================================
    SUPERVISOR MODE (logged in)
    ====================================================================== */
-const COLS=["day","project","site_address","work_location","building","level","weather","weather_manual","leader","issues","issues_details","planned","hazards","notes","token","published_at","completed_at","supervisor_name","supervisor_signature"];
+const COLS=["day","project","site_address","work_location","building","level","weather","weather_manual","leader","issues","issues_details","planned","hazards","risks","notes","token","published_at","completed_at","supervisor_name","supervisor_signature"];
 const LIST_COLS=COLS.filter(c=>c!=="supervisor_signature").concat("updated_at").join(",");
-const SET_COLS=["project","site_address","work_location","building","level","leader","hazards","notes","builder_email"];
+const SET_COLS=["project","site_address","work_location","building","level","leader","hazards","notes","builder_email","risk_list","default_risks"];
 let settings={...DEF_SETTINGS},people=[],days={},sigs={},cur="",outbox={days:{},settings:null},saving=false,flushTimer=null,calM="",pollTimer=null,owner=null,pulled=false;
 const pick=(o,ks)=>{const r={};ks.forEach(k=>{if(o[k]!==undefined)r[k]=o[k]});return r};
-const blankDay=k=>({day:k,...pick(settings,["project","site_address","work_location","building","level","leader","hazards","notes"]),weather:"",weather_manual:false,issues:null,issues_details:"",planned:"",token:null,published_at:null,completed_at:null,supervisor_name:"",supervisor_signature:null});
+const blankDay=k=>({day:k,...pick(settings,["project","site_address","work_location","building","level","leader","notes"]),risks:normRisks(settings.default_risks),hazards:hazText(normRisks(settings.default_risks)),weather:"",weather_manual:false,issues:null,issues_details:"",planned:"",token:null,published_at:null,completed_at:null,supervisor_name:"",supervisor_signature:null});
 const rec=()=>days[cur]||blankDay(cur);
 const edit=()=>days[cur]||(days[cur]=blankDay(cur));
 const activePeople=()=>people.filter(p=>p.active);
@@ -612,7 +617,7 @@ function markDay(k){outbox.days[k]={...clone(days[k]),_at:Date.now()};saveCache(
 function markSettings(){outbox.settings=clone(pick(settings,SET_COLS));saveCache()}
 const pending=()=>Object.keys(outbox.days).length+(outbox.settings?1:0);
 function status(t,busy){const e=$("#statusTxt");if(e){e.textContent=t;$("#dot").classList.toggle("busy",!!busy)}}
-function finalStatus(){status(pending()?(online()?"Not saved yet. Retrying…":"No signal: saved on this phone only"):"Saved",!!pending())}
+function finalStatus(){status(pending()?(online()?"Saving…":"No signal: saved on this phone only"):"Saved",!!pending())}
 function soon(ms){clearTimeout(flushTimer);flushTimer=setTimeout(flush,ms==null?700:ms)}
 async function flush(){
   if(saving||!sb||!online()||!storedUser()||!pulled){finalStatus();return}
@@ -692,11 +697,12 @@ async function autoWeather(k,asked){
 const fld=(f,label,v,ph)=>`<label>${esc(label)}<input type="text" data-f="${f}" value="${esc(v)}"${ph?` placeholder="${esc(ph)}"`:""}></label>`;
 const ta=(f,v,rows,ph)=>`<textarea data-f="${f}" rows="${rows||4}"${ph?` placeholder="${esc(ph)}"`:""}>${esc(v)}</textarea>`;
 const prevDay=k=>Object.keys(days).filter(x=>x<k).sort().pop()||null;
-const COPY_KEYS=["project","site_address","work_location","building","level","leader","hazards","notes"];
+const COPY_KEYS=["project","site_address","work_location","building","level","leader","hazards","risks","notes"];
+const cp=v=>Array.isArray(v)?clone(v):(v||"");
 function render(){
   $("#date").textContent=new Date(cur+"T12:00:00").toLocaleDateString("en-AU",{weekday:"short",day:"numeric",month:"short",year:"numeric"});
   const r=rec(),locked=!!r.completed_at,pub=!!r.published_at,today=sydToday(),prev=prevDay(cur);
-  const canCopy=!locked&&!pub&&prev&&COPY_KEYS.some(k=>(days[prev][k]||"")!==(r[k]||""));
+  const canCopy=!locked&&!pub&&prev&&COPY_KEYS.some(k=>JSON.stringify(cp(days[prev][k]))!==JSON.stringify(cp(r[k])));
   $("#app").classList.toggle("locked",locked);
   const hero=`<section class="card hero"><div class="h">${esc(new Date(cur+"T12:00:00").toLocaleDateString("en-AU",{weekday:"long"}))}</div>
     <div class="sub">${esc(nice(cur))}${cur===today?" · today":""}</div>
@@ -722,14 +728,122 @@ function render(){
     ${ta("issues_details",r.issues_details,3,"If YES, say what (one per line)")}
     <div class="note">${esc(SWMS_NOTE)}</div></section>
   <section class="card"><h2>Planned work today</h2><div class="empty" style="margin-top:-6px">One task per line.</div>${ta("planned",r.planned,5,"e.g. Forming column starters SLN")}</section>
-  <section class="card risk"><h2>Hazards and control measures</h2><div class="empty" style="margin-top:-6px">One per line.</div>${ta("hazards",r.hazards,7)}</section>
-  <section class="card"><h2>Other notes</h2><div class="empty" style="margin-top:-6px">One per line. The standard list is filled in for you.</div>${ta("notes",r.notes,9)}
-    ${locked?"":`<button type="button" class="del" id="notesStd" style="align-self:flex-start;padding:0">Reset to the standard list</button>`}</section>
+  <section class="card risk"><h2>Hazards and control measures</h2><div class="dl" id="rkList" style="gap:10px"></div>
+    ${locked?"":`<button type="button" class="ghost" id="rkAdd">+ Add risk</button>`}</section>
+  <section class="card"><h2>Other notes</h2>${ulist(r.notes)}
+    ${locked?"":`<button type="button" class="btn" id="notesEdit" style="align-self:flex-end;min-height:34px;padding:0 14px;font-size:14px">Edit</button>`}</section>
   ${locked?"":`<section class="card"><div class="empty">Start tomorrow with these project details, hazards and notes.</div><button class="btn" id="saveDef">Save as defaults for new days</button></section>`}`;
   $("#app").innerHTML=hero+(pub?att+form:form);
   if(locked)$("#app").querySelectorAll("input,textarea,.sev button").forEach(x=>x.disabled=true);
-  wireDay();drawAtt();finalStatus();
+  wireDay();drawRisks();drawAtt();finalStatus();
   if(pulled&&cur===sydToday()&&!r.weather&&!r.weather_manual&&!locked&&online()){edit();autoWeather(cur)}
+}
+/* Hazards: risk cards with controls and a rating, picked from a standard list (same as the Site Diary's "Risk of the day"). */
+const sevLabel=v=>v==="high"?"High":v==="low"?"Low":"Medium";
+const strList=l=>Array.isArray(l)?l.filter(x=>typeof x==="string"&&x.trim()):[];
+function normRisks(l){return (Array.isArray(l)?l:[]).filter(r=>r&&r.name).map(r=>({name:String(r.name),level:["low","med","high"].includes(r.level)?r.level:"med",controls:strList(r.controls)}))}
+const hazText=R=>R.map(r=>`${r.name} (${sevLabel(r.level)})${r.controls.length?": "+r.controls.join("; "):""}`).join("\n");
+const stdRisks=()=>{if(!Array.isArray(settings.risk_list))settings.risk_list=[];return settings.risk_list};
+function saveDayRisks(){const x=edit();x.risks=normRisks(x.risks);x.hazards=hazText(x.risks);markDay(cur);soon();drawRisks()}
+function dayRisks(){const x=edit();if(!Array.isArray(x.risks))x.risks=[];return x.risks}
+function saveStd(){markSettings();soon()}
+function drawRisks(){
+  const e=$("#rkList");if(!e)return;const r=rec(),locked=!!r.completed_at,R=normRisks(r.risks);
+  if(!R.length&&lines(r.hazards).length){e.innerHTML=ulist(r.hazards);return} // older day saved as plain lines
+  e.innerHTML=R.length?R.map((x,i)=>`<div class="rk"><div class="t"><span>${esc(x.name)}</span><span class="pill ${esc(x.level)}">${sevLabel(x.level)}</span></div>
+    ${x.controls.length?`<ul>${x.controls.map(c=>`<li>${esc(c)}</li>`).join("")}</ul>`:""}
+    ${locked?"":`<div style="display:flex;gap:16px"><button class="del" data-redit="${i}" style="padding:0;color:var(--ink)">Edit</button><button class="del" data-rdel="${i}" style="padding:0">Remove</button></div>`}</div>`).join("")
+    :`<div class="empty">No hazards yet. Tap Add risk to add today's.</div>`;
+  e.querySelectorAll("[data-redit]").forEach(b=>b.onclick=()=>editRisk(dayRisks()[+b.dataset.redit]));
+  e.querySelectorAll("[data-rdel]").forEach(b=>b.onclick=()=>{const L=dayRisks(),o=L[+b.dataset.rdel];if(!o||!confirm(`Remove "${o.name}" from today?`))return;L.splice(+b.dataset.rdel,1);saveDayRisks()});
+}
+function editRisk(r){
+  if(!r)return;const risks=stdRisks();const std=risks.find(x=>x.name.toLowerCase()===String(r.name).toLowerCase());
+  let level=r.level||"med";
+  const ctrls=(r.controls||[]).map(t=>({t,on:true}));
+  (std?std.controls:[]).forEach(t=>{if(!ctrls.some(c=>c.t===t))ctrls.push({t,on:false})});
+  const body=`<label>Risk<input type="text" id="en" value="${esc(r.name)}"></label>
+    <div><div style="font-size:14px;color:var(--muted);font-weight:500;margin-bottom:6px">Controls in place</div><div id="ecl" style="display:flex;flex-direction:column;gap:8px"></div></div>
+    <div class="row" style="grid-template-columns:1fr auto"><input type="text" id="ecn" placeholder="Add a control" aria-label="Add a control"><button class="btn" id="eca" type="button">Add control</button></div>
+    <div><div style="font-size:14px;color:var(--muted);font-weight:500;margin-bottom:6px">Rating today</div>
+    <div class="sev" id="esev">${["low","med","high"].map(v=>`<button type="button" data-v="${v}" aria-pressed="${v===level}">${sevLabel(v)}</button>`).join("")}</div></div>
+    <div class="empty">New controls are saved to this risk in your standard list.</div>`;
+  sheet("Edit risk",body,"Save changes",b=>{
+    const pend=b.querySelector("#ecn").value.trim();if(pend)ctrls.push({t:pend,on:true,fresh:true});
+    const name=b.querySelector("#en").value.trim();if(!name){toast("The risk needs a name");return false}
+    r.name=name;r.level=level;r.controls=ctrls.filter(c=>c.on).map(c=>c.t);
+    const st=risks.find(x=>x.name.toLowerCase()===name.toLowerCase());
+    if(st){let ch=false;ctrls.filter(c=>c.fresh).forEach(c=>{if(!st.controls.includes(c.t)){st.controls.push(c.t);ch=true}});if(ch)saveStd()}
+    saveDayRisks();
+  },b=>{
+    const draw=()=>{b.querySelector("#ecl").innerHTML=ctrls.map((c,i)=>`<label class="chk"><input type="checkbox" data-i="${i}" ${c.on?"checked":""}><span>${esc(c.t)}</span></label>`).join("")||'<div class="empty">No controls yet. Add one below.</div>';
+      b.querySelectorAll("#ecl input").forEach(x=>x.onchange=()=>ctrls[x.dataset.i].on=x.checked)};
+    const add=()=>{const i=b.querySelector("#ecn"),t=i.value.trim();if(!t)return;ctrls.push({t,on:true,fresh:true});i.value="";draw()};
+    b.querySelector("#eca").onclick=add;b.querySelector("#ecn").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();add()}};
+    b.querySelectorAll("#esev button").forEach(x=>x.onclick=()=>{level=x.dataset.v;b.querySelectorAll("#esev button").forEach(y=>y.setAttribute("aria-pressed",y===x))});
+    draw();
+  });
+}
+function riskFlow(){
+  if(rec().completed_at){toast("This day is completed. Reopen it to make changes.");return}
+  const NEW="__new__";let ctrls=[],level="med",added=[];const api={};const risks=()=>stdRisks();
+  const opts=()=>`<option value="" selected>Select a risk</option><option value="${NEW}">+ New risk</option>${risks().map((r,i)=>`<option value="${i}">${esc(r.name)}</option>`).join("")}`;
+  const body=`<label>Risk<select id="rs">${opts()}</select></label>
+    <label id="nnw" hidden>New risk name<input type="text" id="rn" placeholder="Example: Working near live crane"></label>
+    <div><div style="font-size:14px;color:var(--muted);font-weight:500;margin-bottom:6px">Controls in place</div><div id="cl" style="display:flex;flex-direction:column;gap:8px"></div></div>
+    <div class="row" style="grid-template-columns:1fr auto"><input type="text" id="cn" placeholder="Add a control" aria-label="Add a control"><button class="btn" id="ca" type="button">Add control</button></div>
+    <div><div style="font-size:14px;color:var(--muted);font-weight:500;margin-bottom:6px">Rating today</div>
+    <div class="sev" id="rsev">${["low","med","high"].map(v=>`<button type="button" data-v="${v}" aria-pressed="${v===level}">${sevLabel(v)}</button>`).join("")}</div></div>
+    <div class="empty">New risks and controls you add are saved to your standard list.</div>
+    <div id="added" hidden><div style="font-size:14px;color:var(--muted);font-weight:500;margin-bottom:6px">Added today</div><div id="al" class="dl"></div></div>`;
+  sheet("Add risk of the day",body,"Add risk",b=>{
+    const sel=b.querySelector("#rs").value,isNew=sel===NEW;
+    if(sel===""){toast("Select a risk first");return false}
+    const pend=b.querySelector("#cn").value.trim();if(pend){ctrls.push({t:pend,on:true,fresh:true});b.querySelector("#cn").value=""}
+    const name=isNew?b.querySelector("#rn").value.trim():risks()[sel].name;
+    if(!name){toast("Name the risk first");return false}
+    if(dayRisks().some(x=>x.name.toLowerCase()===name.toLowerCase())){toast("That risk is already on today. Tap Edit on it instead.");return false}
+    const picked=ctrls.filter(c=>c.on).map(c=>c.t);
+    const obj={name,level,controls:picked};dayRisks().push(obj);added.push(obj);saveDayRisks();
+    const L=risks();
+    if(isNew){const ex=L.find(r=>r.name.toLowerCase()===name.toLowerCase());
+      if(ex){picked.forEach(t=>{if(!ex.controls.includes(t))ex.controls.push(t)})}else L.push({name,controls:picked.slice()})}
+    else ctrls.filter(c=>c.fresh).forEach(c=>{if(!L[sel].controls.includes(c.t))L[sel].controls.push(c.t)});
+    saveStd();
+    api.reset();okMsg("Added to today: "+name);return false;
+  },b=>{
+    $("#scl").textContent="Done";
+    const draw=()=>{b.querySelector("#cl").innerHTML=ctrls.map((c,i)=>`<label class="chk"><input type="checkbox" data-i="${i}" ${c.on?"checked":""}><span>${esc(c.t)}</span></label>`).join("")||`<div class="empty">${b.querySelector("#rs").value===""?"Pick a risk to see its controls.":"No controls yet. Add one below."}</div>`;
+      b.querySelectorAll("#cl input").forEach(x=>x.onchange=()=>ctrls[x.dataset.i].on=x.checked)};
+    const load=()=>{const s=b.querySelector("#rs").value;b.querySelector("#nnw").hidden=s!==NEW;
+      ctrls=(s===NEW||s==="")?[]:risks()[s].controls.map(t=>({t,on:true}));draw()};
+    b.querySelector("#rs").onchange=load;
+    const addCtl=()=>{const i=b.querySelector("#cn"),t=i.value.trim();if(!t)return;ctrls.push({t,on:true,fresh:true});i.value="";draw()};
+    b.querySelector("#ca").onclick=addCtl;
+    b.querySelector("#cn").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();addCtl()}};
+    b.querySelector("#rn").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();b.querySelector("#cn").focus()}};
+    b.querySelectorAll("#rsev button").forEach(x=>x.onclick=()=>{level=x.dataset.v;b.querySelectorAll("#rsev button").forEach(y=>y.setAttribute("aria-pressed",y===x))});
+    const renderAdded=()=>{
+      b.querySelector("#added").hidden=!added.length;
+      b.querySelector("#al").innerHTML=added.map((r,i)=>`<div class="it"><span>${esc(r.name)}<br><small>${sevLabel(r.level)} · ${(r.controls||[]).length} controls</small></span><button type="button" class="del" data-ar="${i}">Remove</button></div>`).join("");
+      b.querySelectorAll("[data-ar]").forEach(x=>x.onclick=()=>{const o=added[x.dataset.ar],L=dayRisks(),j=L.indexOf(o);if(j>=0)L.splice(j,1);added.splice(x.dataset.ar,1);saveDayRisks();renderAdded()});
+    };
+    api.reset=()=>{
+      b.querySelector("#rs").innerHTML=opts();b.querySelector("#rs").value="";b.querySelector("#rn").value="";b.querySelector("#cn").value="";
+      level="med";b.querySelectorAll("#rsev button").forEach(y=>y.setAttribute("aria-pressed",y.dataset.v==="med"));
+      load();renderAdded();
+    };
+    load();
+  });
+}
+function notesSheet(){
+  const r=rec();
+  sheet("Other notes",`<div class="empty">One note per line.</div><textarea id="nTxt" rows="14">${esc(r.notes)}</textarea>
+    <button type="button" class="del" id="nStd" style="align-self:flex-start;padding:0">Reset to the standard list</button>
+    <label class="chk"><input type="checkbox" id="nDef"><span>Also use these notes for new days</span></label>`,"Save",b=>{
+    const x=edit();x.notes=lines(b.querySelector("#nTxt").value).join("\n");markDay(cur);
+    if(b.querySelector("#nDef").checked){settings.notes=x.notes;markSettings()}soon();render();toast("Notes saved")},
+    b=>{b.querySelector("#nStd").onclick=()=>{b.querySelector("#nTxt").value=DEF_NOTES}});
 }
 function wireDay(){
   const A=$("#app");
@@ -737,9 +851,10 @@ function wireDay(){
   A.querySelectorAll("[data-yn]").forEach(b=>b.onclick=()=>{const r=edit(),v=b.dataset.yn==="yes";r.issues=r.issues===v?null:v;
     A.querySelectorAll("[data-yn]").forEach(x=>x.setAttribute("aria-pressed",String(r.issues===(x.dataset.yn==="yes"))));markDay(cur);soon()});
   const on=(id,fn)=>{const e=A.querySelector("#"+id);if(e)e.onclick=fn};
-  on("copyPrev",()=>{const p=days[prevDay(cur)];if(!p)return;const r=edit();COPY_KEYS.forEach(k=>r[k]=p[k]||"");markDay(cur);soon();render();toast("Copied from "+shortDay(p.day))});
-  on("notesStd",()=>{if(!confirm("Replace the notes with the standard list?"))return;const r=edit();r.notes=DEF_NOTES;markDay(cur);soon();render()});
-  on("saveDef",()=>{const r=rec();COPY_KEYS.forEach(k=>settings[k]=r[k]||"");markSettings();soon();toast("Saved. New days will start with these details.")});
+  on("copyPrev",()=>{const p=days[prevDay(cur)];if(!p)return;const r=edit();COPY_KEYS.forEach(k=>r[k]=cp(p[k]));markDay(cur);soon();render();toast("Copied from "+shortDay(p.day))});
+  on("notesEdit",notesSheet);
+  on("rkAdd",riskFlow);
+  on("saveDef",()=>{const r=rec();COPY_KEYS.forEach(k=>settings[k==="risks"?"default_risks":k]=cp(r[k]));markSettings();soon();toast("Saved. New days will start with these details.")});
   on("wxGo",()=>{const r=edit();if(!String(r.site_address||"").trim()){toast("Add the site address first");return}toast("Getting the weather…");autoWeather(cur,true)});
   on("hPub",publish);on("hQr",()=>showQR(rec()));on("hPrint",()=>printQR(rec()));on("hPdf",pdfSheet);on("hReopen",reopen);
 }
@@ -858,10 +973,10 @@ function settingsSheet(){
     <label>Project<input type="text" id="s_project" value="${esc(s.project)}"></label><label>Site address<input type="text" id="s_site_address" value="${esc(s.site_address)}"></label>
     <div class="row3"><label>Work location<input type="text" id="s_work_location" value="${esc(s.work_location)}"></label><label>Building<input type="text" id="s_building" value="${esc(s.building)}"></label><label>Level<input type="text" id="s_level" value="${esc(s.level)}"></label></div>
     <label>Person leading the meeting<input type="text" id="s_leader" value="${esc(s.leader)}"></label>
-    <label>Hazards and control measures (one per line)<textarea id="s_hazards" rows="6">${esc(s.hazards)}</textarea></label>
+    <div class="empty">Hazards for new days: set them up on a day, then tap <b>Save as defaults for new days</b>.</div>
     <label>Other notes (one per line)<textarea id="s_notes" rows="8">${esc(s.notes)}</textarea></label>`,"Save",b=>{
     const em=b.querySelector("#sEmail").value.trim();if(em&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){toast("That email doesn't look right");return false}
-    settings.builder_email=em;["project","site_address","work_location","building","level","leader","hazards","notes"].forEach(k=>settings[k]=b.querySelector("#s_"+k).value);
+    settings.builder_email=em;["project","site_address","work_location","building","level","leader","notes"].forEach(k=>settings[k]=b.querySelector("#s_"+k).value);
     markSettings();soon(0);toast("Settings saved");
   });
 }

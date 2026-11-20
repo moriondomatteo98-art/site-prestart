@@ -8,12 +8,14 @@ Status: ✅ done · 🔜 to do · ❌ dropped
 3. ✅ **Live attendance** – names, times and signatures; remove a mistaken sign-in; add a typed name to the people list.
 4. ✅ **PDF like the TF Group template (REV 2)** – download, or share with the phone's share sheet.
 5. ✅ **Copy from previous day** and **Save as defaults** for project details, hazards and notes.
-6. ✅ **Automatic weather forecast** from Open-Meteo, like the diary. Typing your own always wins.
+6. ✅ **Hazards like the diary's Risk of the day** – pick from a standard list, tick controls, rate Low/Medium/High; new risks and controls are saved for next time. *(v2)*
+7. ✅ **Other notes** shown as a list with a small Edit button. *(v2)*
+8. ✅ **Automatic weather forecast** from Open-Meteo, like the diary. Typing your own always wins.
 
 ## To decide
-7. 🔜 **Email the PDF automatically to the builder** when you tap Complete (Supabase Edge Function + an email
+9. 🔜 **Email the PDF automatically to the builder** when you tap Complete (Supabase Edge Function + an email
    service such as Resend). The app is ready for it: the builder's email is already saved in Settings.
-8. 🔜 **Several projects** – switch between jobs, each with its own people list and defaults.
+10. 🔜 **Several projects** – switch between jobs, each with its own people list and defaults.
 
 ## Other ideas
 - 🔜 **Translations** for the worker screen (common site languages).
