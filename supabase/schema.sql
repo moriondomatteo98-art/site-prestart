@@ -228,4 +228,21 @@ on conflict (id) do nothing;
 alter table public.prestarts add column if not exists risks jsonb not null default '[]'::jsonb;
 alter table public.settings add column if not exists risk_list jsonb not null default '[]'::jsonb;
 alter table public.settings add column if not exists default_risks jsonb not null default '[]'::jsonb;
-alter table public.people add column if not exists supervisor boolean not null default false; -- can sign off pre-starts (shown in the Complete dropdown)
+
+-- Supervisors = the login accounts in app_owner. Each can set their own display name.
+alter table public.app_owner add column if not exists name text not null default '' check (char_length(name) <= 80);
+revoke insert, update, delete on public.app_owner from authenticated;
+grant update (name) on public.app_owner to authenticated;
+drop policy if exists "owner updates own name" on public.app_owner;
+create policy "owner updates own name" on public.app_owner for update to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+create or replace function public.list_supervisors()
+returns table (user_id uuid, name text, email text, is_me boolean)
+language sql stable security definer set search_path = '' as $$
+  select o.user_id, o.name, u.email::text, o.user_id = (select auth.uid())
+  from public.app_owner o join auth.users u on u.id = o.user_id
+  where exists (select 1 from public.app_owner me where me.user_id = (select auth.uid()))
+  order by lower(coalesce(nullif(o.name,''), u.email));
+$$;
+revoke all on function public.list_supervisors() from public, anon;
+grant execute on function public.list_supervisors() to authenticated;

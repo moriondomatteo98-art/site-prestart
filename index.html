@@ -291,7 +291,7 @@ const DEF_SETTINGS={project:"Greenwich Hospital",site_address:"97-115 River Rd G
 
 /* ---------- Supabase connection. The publishable key is safe in the browser: tables are owner-only (RLS);
    workers can only call get_prestart and sign_prestart, which check today's QR code. ---------- */
-const APP_VERSION="v13";
+const APP_VERSION="v14";
 const SB_URL="https://aovloludvrjwiymwdyyp.supabase.co";
 const SB_KEY="sb_publishable_E63eM0gvd1phMBaAnXLQJA_QxZ4z4qc";
 const AUTH_KEY="sitePrestart.auth",LSC="sitePrestart.cache.v1",LSQ="sitePrestart.outbox.v1",LSG="sitePrestart.geo";
@@ -610,6 +610,7 @@ function wDone(name,at){
 const COLS=["day","project","site_address","work_location","building","level","weather","weather_manual","leader","issues","issues_details","planned","hazards","risks","notes","token","published_at","completed_at","supervisor_name","supervisor_signature"];
 const LIST_COLS=COLS.filter(c=>c!=="supervisor_signature").concat("updated_at").join(",");
 const SET_COLS=["project","site_address","work_location","building","level","leader","hazards","notes","builder_email","risk_list","default_risks"];
+let sups=[]; // supervisor logins: [{user_id,name,email,is_me}]
 let settings={...DEF_SETTINGS},people=[],days={},sigs={},cur="",outbox={days:{},settings:null},saving=false,flushTimer=null,calM="",pollTimer=null,owner=null,pulled=false;
 const pick=(o,ks)=>{const r={};ks.forEach(k=>{if(o[k]!==undefined)r[k]=o[k]});return r};
 const DEF_KEYS=["project","site_address","leader","notes"]; // what a new day starts with; hazards, location, building and level start blank
@@ -621,8 +622,8 @@ const dayStatus=k=>{const r=days[k];if(!r)return"blank";if(r.completed_at)return
 
 function storedUser(){try{const s=JSON.parse(localStorage.getItem(AUTH_KEY)||"null");return s&&s.user&&s.user.id?s.user:null}catch(e){return null}}
 function saveCache(){try{const lite={};for(const k in days){const r={...days[k]};delete r.supervisor_signature;lite[k]=r}
-  localStorage.setItem(LSC,JSON.stringify({settings,people,days:lite}));localStorage.setItem(LSQ,JSON.stringify(outbox))}catch(e){}}
-function loadCache(){try{const c=JSON.parse(localStorage.getItem(LSC)||"null");if(c){settings={...DEF_SETTINGS,...(c.settings||{})};people=c.people||[];days=c.days||{}}}catch(e){}
+  localStorage.setItem(LSC,JSON.stringify({settings,people,sups,days:lite}));localStorage.setItem(LSQ,JSON.stringify(outbox))}catch(e){}}
+function loadCache(){try{const c=JSON.parse(localStorage.getItem(LSC)||"null");if(c){settings={...DEF_SETTINGS,...(c.settings||{})};people=c.people||[];sups=c.sups||[];days=c.days||{}}}catch(e){}
   try{const o=JSON.parse(localStorage.getItem(LSQ)||"null");if(o&&o.days)outbox={days:o.days,settings:o.settings||null};for(const k in outbox.days){const x=clone(outbox.days[k]);delete x._at;days[k]=x}}catch(e){}}
 function markDay(k){outbox.days[k]={...clone(days[k]),_at:Date.now()};saveCache()}
 function markSettings(){outbox.settings=clone(pick(settings,SET_COLS));saveCache()}
@@ -651,7 +652,7 @@ async function pull(){
     if(o.error){if(o.status===401||/JWT/i.test(o.error.message||"")){showLogin(true)}finalStatus();return}
     owner=!!(o.data&&o.data.length);if(!owner){notOwner();return}
     const [st,pp,ds]=await Promise.all([sb.from("settings").select(SET_COLS.join(",")).eq("id",1).maybeSingle(),
-      sb.from("people").select("id,name,active,supervisor").order("name"),sb.from("prestarts").select(LIST_COLS)]);
+      sb.from("people").select("id,name,active").order("name"),sb.from("prestarts").select(LIST_COLS)]);
     if(st.data&&!outbox.settings)settings={...DEF_SETTINGS,...st.data};
     if(pp.data)people=pp.data;
     if(ds.data){const keep={};for(const k in days)if(days[k]&&days[k].supervisor_signature)keep[k]=days[k].supervisor_signature;
@@ -662,6 +663,7 @@ async function pull(){
         const x=clone(days[k]);if(srv&&srv.token&&!x.token){x.token=srv.token;x.published_at=srv.published_at}nd[k]=x;outbox.days[k]={...clone(x),_at:loc._at}}
       days=nd}
     pulled=true;
+    try{const sp=await sb.rpc("list_supervisors");if(!sp.error&&Array.isArray(sp.data))sups=sp.data}catch(e){}
     saveCache();render();await loadSigs(cur);
   }catch(e){console.warn(e)}
   flush();
@@ -894,7 +896,7 @@ function drawAtt(){
   e.querySelector("#attRef").onclick=()=>{if(!online()){toast("No signal");return}loadSigs(cur).then(()=>toast("Up to date"))};
   e.querySelectorAll("[data-rm]").forEach(b=>b.onclick=async()=>{const s=S.find(x=>x.id===b.dataset.rm);if(!s||!confirm(`Remove ${s.name}'s sign-in? They can then sign again.`))return;
     const {error}=await sb.from("signoffs").delete().eq("id",s.id);if(error){toast("Couldn't remove it. Check your signal.");return}toast("Removed");loadSigs(cur)});
-  e.querySelectorAll("[data-addp]").forEach(b=>b.onclick=async()=>{const {data,error}=await sb.from("people").insert({name:b.dataset.addp}).select("id,name,active,supervisor").single();
+  e.querySelectorAll("[data-addp]").forEach(b=>b.onclick=async()=>{const {data,error}=await sb.from("people").insert({name:b.dataset.addp}).select("id,name,active").single();
     if(error){toast("Couldn't add. Check your signal.");return}people.push(data);people.sort((a,b)=>a.name.localeCompare(b.name));saveCache();toast("Added to the people list");drawAtt()});
 }
 
@@ -933,12 +935,15 @@ function completeFlow(){
   if(!r.published_at){toast("Publish the day first, so workers can sign.");return}
   const n=(sigs[cur]||[]).length;
   sheet("Complete pre-start",`<div class="empty">${n} ${n===1?"person has":"people have"} signed. Once you complete it, sign-ins close and the PDF is made.</div>
-    ${(()=>{const SUP=activePeople().filter(p=>p.supervisor),want=(r.supervisor_name||r.leader||"").toLowerCase(),hit=SUP.find(p=>p.name.toLowerCase()===want);
-      return SUP.length?`<label>Site supervisor / person responsible<select id="cName" style="font-weight:600"><option value="">Select supervisor</option>${SUP.map(p=>`<option ${hit===p?"selected":""}>${esc(p.name)}</option>`).join("")}</select></label>`
-        :`<label>Site supervisor / person responsible<input type="text" id="cName" value="${esc(r.supervisor_name||r.leader||"")}" autocomplete="name" autocapitalize="words"></label><div class="empty" style="margin-top:-6px">Tip: mark supervisors in <b>People</b> to pick them from a list here.</div>`})()}
+    ${sups.length?`<label>Site supervisor / person responsible<select id="cSup" style="font-weight:600">${(()=>{const want=(r.supervisor_name||"").toLowerCase(),hit=(want&&sups.find(x=>(x.name||"").toLowerCase()===want))||sups.find(x=>x.is_me)||sups[0];
+        return sups.map((x,i)=>`<option value="${i}" ${x===hit?"selected":""}>${esc(x.name||x.email)}${x.is_me?" (you)":""}</option>`).join("")})()}</select></label>
+      <label id="cNameWrap">Name to print on the PDF<input type="text" id="cName" autocomplete="name" autocapitalize="words"></label>`
+      :`<label>Site supervisor / person responsible<input type="text" id="cName" value="${esc(r.supervisor_name||r.leader||"")}" autocomplete="name" autocapitalize="words"></label>`}
     <div><div class="empty" style="margin-bottom:6px">Your signature</div>${padHTML("cSig")}</div>
     <label class="chk"><input type="checkbox" id="cMe" checked><span>Add me to the attendance with this signature (skipped if I've already signed)</span></label>`,"Complete and sign",async b=>{
-    const name=b.querySelector("#cName").value.trim();if(!name){toast(b.querySelector("select#cName")?"Select the supervisor":"Type your name");return false}
+    const name=b.querySelector("#cName").value.trim();if(!name){toast("Type the supervisor's name");return false}
+    const su=b.querySelector("#cSup")?sups[+b.querySelector("#cSup").value]:null;
+    if(su&&su.is_me&&!su.name&&online()){const {error}=await sb.from("app_owner").update({name}).eq("user_id",su.user_id);if(!error){su.name=name;saveCache()}}
     if(pad.empty()){toast("Sign in the box with your finger");return false}
     const addMe=b.querySelector("#cMe").checked;
     if(!n&&!addMe&&!confirm("Nobody has signed yet. Complete anyway?"))return false;
@@ -956,6 +961,8 @@ function completeFlow(){
     render();setTimeout(()=>pdfSheet(true),50);
   });
   let pad=sigPad($("#cSig"));$("[data-clear=cSig]").onclick=()=>pad.clear();
+  const cs=$("#cSup");if(cs){const sync=()=>{const x=sups[+cs.value],w=$("#cNameWrap");$("#cName").value=x.name||"";w.hidden=!!x.name;
+      if(!x.name)w.firstChild.textContent=x.is_me?"Your name (printed on the PDF, saved for next time)":"Name to print on the PDF"};cs.onchange=sync;sync()}
 }
 function reopen(){
   if(!confirm("Reopen this day? Your sign-off signature is removed and workers can sign again (if it's still today)."))return;
@@ -1024,12 +1031,10 @@ async function pdfSheet(justDone){
 function peopleSheet(){
   const body=`<div style="display:flex;gap:8px"><input type="text" id="pName" placeholder="Full name" autocapitalize="words" autocomplete="off" aria-label="Full name" style="flex:1"><button class="btn primary" id="pAdd" type="button">Add</button></div>
     <details><summary class="empty" style="cursor:pointer">Paste a list of names (one per line)</summary><div style="display:flex;flex-direction:column;gap:8px;margin-top:8px"><textarea id="pBulk" rows="6" placeholder="One name per line"></textarea><button class="btn" id="pBulkAdd" type="button">Add all</button></div></details>
-    <div class="empty" id="pCount"></div><div class="empty" style="margin-top:-6px">Tap <b>Supervisor</b> on the people who can sign off pre-starts.</div><div class="dl" id="pList"></div>`;
+    <div class="empty" id="pCount"></div><div class="dl" id="pList"></div>`;
   sheet("People",body,null,null,b=>{
     const draw=()=>{const A=activePeople();b.querySelector("#pCount").textContent=`${A.length} ${A.length===1?"name":"names"} on the list. Workers pick their name from this list.`;
-      b.querySelector("#pList").innerHTML=A.length?A.map(p=>`<div class="it"><span>${esc(p.name)}</span><span style="display:flex;gap:6px;align-items:center;flex:none"><button class="chip" data-sup="${esc(p.id)}" aria-pressed="${!!p.supervisor}" type="button" style="min-height:32px;font-size:13px">${p.supervisor?"✓ ":""}Supervisor</button><button class="del" data-pid="${esc(p.id)}" type="button">Remove</button></span></div>`).join(""):`<div class="empty">No names yet.</div>`;
-      b.querySelectorAll("[data-sup]").forEach(x=>x.onclick=async()=>{const p=people.find(q=>q.id===x.dataset.sup);if(!p)return;if(!online()){toast("No signal. Try again when you're online.");return}
-        const v=!p.supervisor;const {error}=await sb.from("people").update({supervisor:v}).eq("id",p.id);if(error){toast("Couldn't save. Check your signal.");return}p.supervisor=v;saveCache();draw()});
+      b.querySelector("#pList").innerHTML=A.length?A.map(p=>`<div class="it"><span>${esc(p.name)}</span><button class="del" data-pid="${esc(p.id)}" type="button">Remove</button></div>`).join(""):`<div class="empty">No names yet.</div>`;
       b.querySelectorAll("[data-pid]").forEach(x=>x.onclick=async()=>{const p=people.find(q=>q.id===x.dataset.pid);if(!p||!confirm(`Remove ${p.name} from the list? Their past sign-ins stay.`))return;
         const {error}=await sb.from("people").delete().eq("id",p.id);if(error){toast("Couldn't remove. Check your signal.");return}people=people.filter(q=>q.id!==p.id);saveCache();draw();render()})};
     const add=async names=>{
@@ -1037,7 +1042,7 @@ function peopleSheet(){
       const have=new Set(people.map(p=>p.name.toLowerCase()));const seen=new Set();
       const rows=names.map(n=>n.replace(/\s+/g," ").trim().slice(0,80)).filter(n=>n.length>=2&&!have.has(n.toLowerCase())&&!seen.has(n.toLowerCase())&&seen.add(n.toLowerCase())).map(name=>({name}));
       if(!rows.length){toast(names.length>1?"All those names are already on the list":"That name is already on the list (or too short)");return 0}
-      const {data,error}=await sb.from("people").insert(rows).select("id,name,active,supervisor");if(error){toast("Couldn't add. Check your signal.");return 0}
+      const {data,error}=await sb.from("people").insert(rows).select("id,name,active");if(error){toast("Couldn't add. Check your signal.");return 0}
       people=people.concat(data).sort((a,b)=>a.name.localeCompare(b.name));saveCache();draw();render();return data.length};
     b.querySelector("#pAdd").onclick=async()=>{const i=b.querySelector("#pName");if(await add([i.value])){i.value="";i.focus();okMsg("Added")}};
     b.querySelector("#pName").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();b.querySelector("#pAdd").click()}};
@@ -1049,13 +1054,17 @@ function peopleSheet(){
 /* ---------- settings ---------- */
 function settingsSheet(){
   const s=settings;
-  sheet("Settings",`<label>Builder's email (for sending the PDF)<input type="email" id="sEmail" value="${esc(s.builder_email)}" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="name@builder.com.au"></label>
+  const me=sups.find(x=>x.is_me);
+  sheet("Settings",`${me?`<label>Your name as supervisor (shown when completing a pre-start)<input type="text" id="sMe" value="${esc(me.name)}" autocomplete="name" autocapitalize="words" placeholder="${esc(me.email)}"></label>`:""}
+    <label>Builder's email (for sending the PDF)<input type="email" id="sEmail" value="${esc(s.builder_email)}" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="name@builder.com.au"></label>
     <div class="empty">New days start with these:</div>
     <label>Project<input type="text" id="s_project" value="${esc(s.project)}"></label><label>Site address<input type="text" id="s_site_address" value="${esc(s.site_address)}"></label>
     <label>Person leading the meeting<input type="text" id="s_leader" value="${esc(s.leader)}"></label>
     <div class="empty">Hazards, work location, building and level start blank every day. Use <b>+ Add risk</b> to pick hazards from your standard list.</div>
-    <label>Other notes (one per line)<textarea id="s_notes" rows="8">${esc(s.notes)}</textarea></label>`,"Save",b=>{
+    <label>Other notes (one per line)<textarea id="s_notes" rows="8">${esc(s.notes)}</textarea></label>`,"Save",async b=>{
     const em=b.querySelector("#sEmail").value.trim();if(em&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){toast("That email doesn't look right");return false}
+    const mi=b.querySelector("#sMe");if(me&&mi&&mi.value.trim()!==me.name){if(!online()){toast("No signal: your supervisor name can't be saved right now");return false}
+      const {error}=await sb.from("app_owner").update({name:mi.value.trim().slice(0,80)}).eq("user_id",me.user_id);if(error){toast("Couldn't save your name. Try again.");return false}me.name=mi.value.trim().slice(0,80);saveCache()}
     settings.builder_email=em;["project","site_address","leader","notes"].forEach(k=>settings[k]=b.querySelector("#s_"+k).value);
     markSettings();soon(0);toast("Settings saved");
   });
