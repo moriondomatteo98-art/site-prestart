@@ -291,7 +291,7 @@ const DEF_SETTINGS={project:"Greenwich Hospital",site_address:"97-115 River Rd G
 
 /* ---------- Supabase connection. The publishable key is safe in the browser: tables are owner-only (RLS);
    workers can only call get_prestart and sign_prestart, which check today's QR code. ---------- */
-const APP_VERSION="v16";
+const APP_VERSION="v17";
 const SB_URL="https://aovloludvrjwiymwdyyp.supabase.co";
 const SB_KEY="sb_publishable_E63eM0gvd1phMBaAnXLQJA_QxZ4z4qc";
 const AUTH_KEY="sitePrestart.auth",LSC="sitePrestart.cache.v1",LSQ="sitePrestart.outbox.v1",LSG="sitePrestart.geo";
@@ -613,8 +613,9 @@ const SET_COLS=["project","site_address","work_location","building","level","lea
 let sups=[]; // supervisor logins: [{user_id,name,email,is_me}]
 let settings={...DEF_SETTINGS},people=[],days={},sigs={},cur="",outbox={days:{},settings:null},saving=false,flushTimer=null,calM="",pollTimer=null,owner=null,pulled=false;
 const pick=(o,ks)=>{const r={};ks.forEach(k=>{if(o[k]!==undefined)r[k]=o[k]});return r};
-const DEF_KEYS=["project","site_address","leader","notes"]; // what a new day starts with; hazards, location, building and level start blank
-const blankDay=k=>({day:k,...pick(settings,DEF_KEYS),work_location:"",building:"",level:"",risks:[],hazards:"",weather:"",weather_manual:false,issues:null,issues_details:"",planned:"",token:null,published_at:null,completed_at:null,supervisor_name:"",supervisor_signature:null});
+const DEF_KEYS=["project","site_address","notes"];
+const myName=()=>((sups.find(x=>x.is_me)||{}).name||""); // what a new day starts with; hazards, location, building and level start blank
+const blankDay=k=>({day:k,...pick(settings,DEF_KEYS),leader:myName(),work_location:"",building:"",level:"",risks:[],hazards:"",weather:"",weather_manual:false,issues:null,issues_details:"",planned:"",token:null,published_at:null,completed_at:null,supervisor_name:"",supervisor_signature:null});
 const rec=()=>days[cur]||blankDay(cur);
 const edit=()=>days[cur]||(days[cur]=blankDay(cur));
 const activePeople=()=>people.filter(p=>p.active);
@@ -736,7 +737,9 @@ function render(){
     <label>Weather forecast<input type="text" data-f="weather" value="${esc(r.weather)}" placeholder="e.g. Sunny, 16-27°C"></label>
     ${locked?"":`<div class="btns" style="margin-top:-4px"><button type="button" class="btn" id="wxGo" style="min-height:38px;font-size:14px">&#8635; Automatic weather</button><span class="empty" style="align-self:center">${r.weather_manual?"Typed by you":r.weather?"Filled in automatically":""}</span></div>`}
     <div class="row3">${fld("work_location","Work location",r.work_location)}${fld("building","Building",r.building)}${fld("level","Level",r.level)}</div>
-    ${fld("leader","Supervisor / person leading the meeting",r.leader)}
+    ${(()=>{const N=sups.map(x=>x.name).filter(Boolean);if(!N.length)return fld("leader","Supervisor / person leading the meeting",r.leader);
+      if(r.leader&&!N.includes(r.leader))N.push(r.leader);
+      return `<label>Supervisor / person leading the meeting<select data-f="leader" style="font-weight:600"><option value="">Select supervisor</option>${N.map(n=>`<option ${n===r.leader?"selected":""}>${esc(n)}</option>`).join("")}</select></label>`})()}
   </section>
   <section class="card"><h2>Issues from previous day</h2>
     <div class="sev" role="group" aria-label="Any issues arising from previous day?"><button type="button" data-yn="yes" aria-pressed="${r.issues===true}">YES</button><button type="button" data-yn="no" aria-pressed="${r.issues===false}">NO</button></div>
@@ -747,7 +750,7 @@ function render(){
     ${locked?"":`<button type="button" class="ghost" id="rkAdd">+ Add risk</button>`}</section>
   <section class="card"><h2>Other notes</h2>${ulist(r.notes)}
     ${locked?"":`<button type="button" class="btn" id="notesEdit" style="align-self:flex-end;min-height:34px;padding:0 14px;font-size:14px">Edit</button>`}</section>
-  ${locked?"":`<section class="card"><div class="empty">Start new days with this project, site address, person leading and notes. (Hazards, work location, building and level always start blank.)</div><button class="btn" id="saveDef">Save as defaults for new days</button></section>`}`;
+  ${locked?"":`<section class="card"><div class="empty">Start new days with this project, site address and notes. (Hazards, work location, building and level always start blank.)</div><button class="btn" id="saveDef">Save as defaults for new days</button></section>`}`;
   $("#app").innerHTML=hero+(pub?att+form:form);
   if(locked)$("#app").querySelectorAll("input,textarea,.sev button").forEach(x=>x.disabled=true);
   wireDay();drawRisks();drawAtt();finalStatus();
@@ -934,17 +937,13 @@ function completeFlow(){
   const r=rec();
   if(r.completed_at){pdfSheet();return}
   if(!r.published_at){toast("Publish the day first, so workers can sign.");return}
+  if(!String(r.leader||"").trim()){toast("Choose the supervisor in Day details first");const f=document.querySelector("[data-f=leader]");if(f){f.scrollIntoView({block:"center",behavior:"smooth"});setTimeout(()=>f.focus(),400)}return}
   const n=(sigs[cur]||[]).length;
   sheet("Complete pre-start",`<div class="empty">${n} ${n===1?"person has":"people have"} signed. Once you complete it, sign-ins close and the PDF is made.</div>
-    ${sups.length?`<label>Site supervisor / person responsible<select id="cSup" style="font-weight:600">${(()=>{const want=(r.supervisor_name||"").toLowerCase(),hit=(want&&sups.find(x=>(x.name||"").toLowerCase()===want))||sups.find(x=>x.is_me)||sups[0];
-        return sups.map((x,i)=>`<option value="${i}" ${x===hit?"selected":""}>${esc(x.name||"Supervisor (name not set)")}${x.is_me?" (you)":""}</option>`).join("")})()}</select></label>
-      <label id="cNameWrap">Name to print on the PDF<input type="text" id="cName" autocomplete="name" autocapitalize="words"></label>`
-      :`<label>Site supervisor / person responsible<input type="text" id="cName" value="${esc(r.supervisor_name||r.leader||"")}" autocomplete="name" autocapitalize="words"></label>`}
+    <div style="font-size:16px">Signing off as: <b>${esc(r.leader)}</b></div><div class="empty" style="margin-top:-8px">The supervisor chosen in Day details.</div>
     <div><div class="empty" style="margin-bottom:6px">Your signature</div>${padHTML("cSig")}</div>
-    <label class="chk"><input type="checkbox" id="cMe" checked><span>Add me to the attendance with this signature (skipped if I've already signed)</span></label>`,"Complete and sign",async b=>{
-    const name=b.querySelector("#cName").value.trim();if(!name){toast("Type the supervisor's name");return false}
-    const su=b.querySelector("#cSup")?sups[+b.querySelector("#cSup").value]:null;
-    if(su&&su.is_me&&!su.name&&online()){const {error}=await sb.from("app_owner").update({name}).eq("user_id",su.user_id);if(!error){su.name=name;saveCache()}}
+    <label class="chk"><input type="checkbox" id="cMe" checked><span>Add ${esc(r.leader)} to the attendance with this signature (skipped if already signed)</span></label>`,"Complete and sign",async b=>{
+    const name=String(rec().leader||"").trim();
     if(pad.empty()){toast("Sign in the box with your finger");return false}
     const addMe=b.querySelector("#cMe").checked;
     if(!n&&!addMe&&!confirm("Nobody has signed yet. Complete anyway?"))return false;
@@ -962,8 +961,7 @@ function completeFlow(){
     render();setTimeout(()=>pdfSheet(true),50);
   });
   let pad=sigPad($("#cSig"));$("[data-clear=cSig]").onclick=()=>pad.clear();
-  const cs=$("#cSup");if(cs){const sync=()=>{const x=sups[+cs.value],w=$("#cNameWrap");$("#cName").value=x.name||"";w.hidden=!!x.name;
-      if(!x.name)w.firstChild.textContent=x.is_me?"Your name (printed on the PDF, saved for next time)":"Name to print on the PDF"};cs.onchange=sync;sync()}
+
 }
 function reopen(){
   if(!confirm("Reopen this day? Your sign-off signature is removed and workers can sign again (if it's still today)."))return;
@@ -1060,13 +1058,12 @@ function settingsSheet(){
     <label>Builder's email (for sending the PDF)<input type="email" id="sEmail" value="${esc(s.builder_email)}" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="name@builder.com.au"></label>
     <div class="empty">New days start with these:</div>
     <label>Project<input type="text" id="s_project" value="${esc(s.project)}"></label><label>Site address<input type="text" id="s_site_address" value="${esc(s.site_address)}"></label>
-    <label>Person leading the meeting<input type="text" id="s_leader" value="${esc(s.leader)}"></label>
     <div class="empty">Hazards, work location, building and level start blank every day. Use <b>+ Add risk</b> to pick hazards from your standard list.</div>
     <label>Other notes (one per line)<textarea id="s_notes" rows="8">${esc(s.notes)}</textarea></label>`,"Save",async b=>{
     const em=b.querySelector("#sEmail").value.trim();if(em&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){toast("That email doesn't look right");return false}
     const mi=b.querySelector("#sMe");if(me&&mi&&mi.value.trim()!==me.name){if(!online()){toast("No signal: your supervisor name can't be saved right now");return false}
       const {error}=await sb.from("app_owner").update({name:mi.value.trim().slice(0,80)}).eq("user_id",me.user_id);if(error){toast("Couldn't save your name. Try again.");return false}me.name=mi.value.trim().slice(0,80);saveCache()}
-    settings.builder_email=em;["project","site_address","leader","notes"].forEach(k=>settings[k]=b.querySelector("#s_"+k).value);
+    settings.builder_email=em;["project","site_address","notes"].forEach(k=>settings[k]=b.querySelector("#s_"+k).value);
     markSettings();soon(0);toast("Settings saved");
   });
 }
@@ -1128,7 +1125,7 @@ function setupSheet(withPw){
       const {error}=await sb.auth.updateUser({password:pw});if(error){toast(error.message);return false}}
     const name=(f+" "+l).slice(0,80);const {error}=await sb.from("app_owner").update({name}).eq("user_id",me.user_id);
     if(error){toast("Couldn't save your name. Check your signal and try again.");return false}
-    me.name=name;sups.forEach(x=>{if(x.user_id===me.user_id)x.name=name});INVITE=false;saveCache();setupOpen=false;toast(withPw?"All set. Welcome, "+f+"!":"Saved");
+    me.name=name;sups.forEach(x=>{if(x.user_id===me.user_id)x.name=name});INVITE=false;saveCache();setupOpen=false;try{render()}catch(e){}toast(withPw?"All set. Welcome, "+f+"!":"Saved");
   });
   $("#scl").hidden=!!withPw; // an invited supervisor must finish setting up
   const done=()=>{setupOpen=false};$("#dlg").addEventListener("close",done,{once:true});
