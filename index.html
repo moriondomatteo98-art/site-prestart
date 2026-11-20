@@ -262,10 +262,10 @@ const BOXES=[
   "I will be alerted to any changes in personal condition at the work site or a hazard not previously identified by the original risk assessment"]}
 ];
 const DEF_HAZARDS=[
- "No parking on site. Hindmarsh encourages public transport and carpooling where possible. Public transport routes are available in the sheds, on the notice board and in the induction room.",
  "Heavy machinery: Be careful around excavators and other plant moving about site. Obey the spotter or traffic controller when walking nearby.",
  "Deep excavations: Be careful of deep excavations. Keep clear of open edges."].join("\n");
 const DEF_NOTES=[
+ "No parking on site. Hindmarsh encourages public transport and carpooling where possible. Public transport routes are available in the sheds, on the notice board and in the induction room.",
  "Workers must be appropriately trained, competent, and experienced to undertake the works assigned to them. Any person unsure of a task or lacking the required competency must stop work and notify supervision immediately.",
  "Workers requiring translation or assistance to understand site instructions, SWMS, hazards, or control measures must notify supervision prior to commencing work.",
  "Changes to site conditions, access, sequencing, weather, or adjacent trades are to be reported immediately. Works must stop if conditions differ from the approved SWMS, drawings, or methodology.",
@@ -275,11 +275,11 @@ const DEF_NOTES=[
  "Operators must hold the required licences/tickets and conduct pre-start inspections. Defective tools, lifting gear, or equipment must be tagged out and reported immediately.",
  "All incidents, near misses, hazards, damaged equipment, and property damage must be reported immediately.",
  "Workers must be fit for work and notify supervision if affected by fatigue, medication, drugs, alcohol, illness, or any condition that may impact their ability to work safely."].join("\n");
-const DEF_SETTINGS={project:"Greenwich Hospital",site_address:"97-115 River Rd Greenwich",work_location:"SLN",building:"SLN",level:"",leader:"",hazards:DEF_HAZARDS,notes:DEF_NOTES,builder_email:"",risk_list:[],default_risks:[]};
+const DEF_SETTINGS={project:"Greenwich Hospital",site_address:"97-115 River Rd Greenwich",work_location:"",building:"",level:"",leader:"",hazards:"",notes:DEF_NOTES,builder_email:"",risk_list:[],default_risks:[]};
 
 /* ---------- Supabase connection. The publishable key is safe in the browser: tables are owner-only (RLS);
    workers can only call get_prestart and sign_prestart, which check today's QR code. ---------- */
-const APP_VERSION="v3";
+const APP_VERSION="v4";
 const SB_URL="https://aovloludvrjwiymwdyyp.supabase.co";
 const SB_KEY="sb_publishable_E63eM0gvd1phMBaAnXLQJA_QxZ4z4qc";
 const AUTH_KEY="sitePrestart.auth",LSC="sitePrestart.cache.v1",LSQ="sitePrestart.outbox.v1",LSG="sitePrestart.geo";
@@ -602,7 +602,8 @@ const LIST_COLS=COLS.filter(c=>c!=="supervisor_signature").concat("updated_at").
 const SET_COLS=["project","site_address","work_location","building","level","leader","hazards","notes","builder_email","risk_list","default_risks"];
 let settings={...DEF_SETTINGS},people=[],days={},sigs={},cur="",outbox={days:{},settings:null},saving=false,flushTimer=null,calM="",pollTimer=null,owner=null,pulled=false;
 const pick=(o,ks)=>{const r={};ks.forEach(k=>{if(o[k]!==undefined)r[k]=o[k]});return r};
-const blankDay=k=>({day:k,...pick(settings,["project","site_address","work_location","building","level","leader","notes"]),risks:normRisks(settings.default_risks),hazards:hazText(normRisks(settings.default_risks)),weather:"",weather_manual:false,issues:null,issues_details:"",planned:"",token:null,published_at:null,completed_at:null,supervisor_name:"",supervisor_signature:null});
+const DEF_KEYS=["project","site_address","leader","notes"]; // what a new day starts with; hazards, location, building and level start blank
+const blankDay=k=>({day:k,...pick(settings,DEF_KEYS),work_location:"",building:"",level:"",risks:[],hazards:"",weather:"",weather_manual:false,issues:null,issues_details:"",planned:"",token:null,published_at:null,completed_at:null,supervisor_name:"",supervisor_signature:null});
 const rec=()=>days[cur]||blankDay(cur);
 const edit=()=>days[cur]||(days[cur]=blankDay(cur));
 const activePeople=()=>people.filter(p=>p.active);
@@ -732,7 +733,7 @@ function render(){
     ${locked?"":`<button type="button" class="ghost" id="rkAdd">+ Add risk</button>`}</section>
   <section class="card"><h2>Other notes</h2>${ulist(r.notes)}
     ${locked?"":`<button type="button" class="btn" id="notesEdit" style="align-self:flex-end;min-height:34px;padding:0 14px;font-size:14px">Edit</button>`}</section>
-  ${locked?"":`<section class="card"><div class="empty">Start tomorrow with these project details, hazards and notes.</div><button class="btn" id="saveDef">Save as defaults for new days</button></section>`}`;
+  ${locked?"":`<section class="card"><div class="empty">Start new days with this project, site address, person leading and notes. (Hazards, work location, building and level always start blank.)</div><button class="btn" id="saveDef">Save as defaults for new days</button></section>`}`;
   $("#app").innerHTML=hero+(pub?att+form:form);
   if(locked)$("#app").querySelectorAll("input,textarea,.sev button").forEach(x=>x.disabled=true);
   wireDay();drawRisks();drawAtt();finalStatus();
@@ -864,7 +865,7 @@ function wireDay(){
   on("copyPrev",()=>{const p=days[prevDay(cur)];if(!p)return;const r=edit();COPY_KEYS.forEach(k=>r[k]=cp(p[k]));markDay(cur);soon();render();toast("Copied from "+shortDay(p.day))});
   on("notesEdit",notesSheet);
   on("rkAdd",riskFlow);
-  on("saveDef",()=>{const r=rec();COPY_KEYS.forEach(k=>settings[k==="risks"?"default_risks":k]=cp(r[k]));markSettings();soon();toast("Saved. New days will start with these details.")});
+  on("saveDef",()=>{const r=rec();DEF_KEYS.forEach(k=>settings[k]=r[k]||"");markSettings();soon();toast("Saved. New days will start with these details.")});
   on("wxGo",()=>{const r=edit();if(!String(r.site_address||"").trim()){toast("Add the site address first");return}toast("Getting the weather…");autoWeather(cur,true)});
   on("hPub",publish);on("hQr",()=>showQR(rec()));on("hPrint",()=>printQR(rec()));on("hPdf",pdfSheet);on("hReopen",reopen);
 }
@@ -981,12 +982,11 @@ function settingsSheet(){
   sheet("Settings",`<label>Builder's email (for sending the PDF)<input type="email" id="sEmail" value="${esc(s.builder_email)}" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="name@builder.com.au"></label>
     <div class="empty">New days start with these:</div>
     <label>Project<input type="text" id="s_project" value="${esc(s.project)}"></label><label>Site address<input type="text" id="s_site_address" value="${esc(s.site_address)}"></label>
-    <div class="row3"><label>Work location<input type="text" id="s_work_location" value="${esc(s.work_location)}"></label><label>Building<input type="text" id="s_building" value="${esc(s.building)}"></label><label>Level<input type="text" id="s_level" value="${esc(s.level)}"></label></div>
     <label>Person leading the meeting<input type="text" id="s_leader" value="${esc(s.leader)}"></label>
-    <div class="empty">Hazards for new days: set them up on a day, then tap <b>Save as defaults for new days</b>.</div>
+    <div class="empty">Hazards, work location, building and level start blank every day. Use <b>+ Add risk</b> to pick hazards from your standard list.</div>
     <label>Other notes (one per line)<textarea id="s_notes" rows="8">${esc(s.notes)}</textarea></label>`,"Save",b=>{
     const em=b.querySelector("#sEmail").value.trim();if(em&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){toast("That email doesn't look right");return false}
-    settings.builder_email=em;["project","site_address","work_location","building","level","leader","notes"].forEach(k=>settings[k]=b.querySelector("#s_"+k).value);
+    settings.builder_email=em;["project","site_address","leader","notes"].forEach(k=>settings[k]=b.querySelector("#s_"+k).value);
     markSettings();soon(0);toast("Settings saved");
   });
 }

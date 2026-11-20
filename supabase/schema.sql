@@ -209,12 +209,11 @@ grant execute on function public.get_prestart(date, text) to anon, authenticated
 grant execute on function public.sign_prestart(date, text, uuid, text, text) to anon, authenticated;
 
 -- ---------- starting defaults (Greenwich Hospital) ----------
-insert into public.settings (id, project, site_address, work_location, building, hazards, notes)
-values (1, 'Greenwich Hospital', '97-115 River Rd Greenwich', 'SLN', 'SLN',
-$h$No parking on site. Hindmarsh encourages public transport and carpooling where possible. Public transport routes are available in the sheds, on the notice board and in the induction room.
-Heavy machinery: Be careful around excavators and other plant moving about site. Obey the spotter or traffic controller when walking nearby.
-Deep excavations: Be careful of deep excavations. Keep clear of open edges.$h$,
-$n$Workers must be appropriately trained, competent, and experienced to undertake the works assigned to them. Any person unsure of a task or lacking the required competency must stop work and notify supervision immediately.
+-- New days start with project, site address, person leading and notes. Hazards, work location, building and level start blank.
+insert into public.settings (id, project, site_address, notes)
+values (1, 'Greenwich Hospital', '97-115 River Rd Greenwich',
+$n$No parking on site. Hindmarsh encourages public transport and carpooling where possible. Public transport routes are available in the sheds, on the notice board and in the induction room.
+Workers must be appropriately trained, competent, and experienced to undertake the works assigned to them. Any person unsure of a task or lacking the required competency must stop work and notify supervision immediately.
 Workers requiring translation or assistance to understand site instructions, SWMS, hazards, or control measures must notify supervision prior to commencing work.
 Changes to site conditions, access, sequencing, weather, or adjacent trades are to be reported immediately. Works must stop if conditions differ from the approved SWMS, drawings, or methodology.
 Only current approved drawings and instructions are to be used. Do not proceed where information is unclear, incomplete, or unavailable.
