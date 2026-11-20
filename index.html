@@ -109,6 +109,13 @@ dialog h2{font-size:20px}
 .cal button.done{background:var(--ok);border-color:var(--ok);color:var(--ok-ink)}
 .cal button.wip{background:var(--wip);border-color:var(--wip);color:var(--wip-ink)}
 .cal button.draft{border:2px dashed var(--muted)}
+.cal.ex button{position:relative;background:var(--bg);border:1px solid var(--line);color:var(--ink)}
+.cal.ex button.done,.cal.ex button.wip,.cal.ex button.draft{background:var(--bg);border:1px solid var(--line);color:var(--ink)}
+.cal.ex button.inr{background:rgba(255,49,49,.14);border-color:rgba(255,49,49,.3)}
+.cal.ex button.inr.done,.cal.ex button.inr.wip,.cal.ex button.inr.draft{background:rgba(255,49,49,.78);border-color:rgba(255,49,49,.9);color:#fff}
+.cal.ex button.edge{outline:2px solid #ff3131;outline-offset:1px}
+.cal.ex .dot{position:absolute;top:4px;left:50%;transform:translateX(-50%);width:9px;height:9px;border-radius:50%;box-shadow:0 0 0 1.5px #fff}
+.cal.ex .dot.done{background:var(--ok)}.cal.ex .dot.wip{background:var(--wip)}.cal.ex .dot.draft{background:var(--muted)}
 .cal button.today{outline:2px solid var(--ink);outline-offset:1px}
 .cal button.cur{text-decoration:underline}
 .calnav{display:flex;align-items:center;gap:8px}
@@ -282,7 +289,7 @@ const DEF_SETTINGS={project:"Greenwich Hospital",site_address:"97-115 River Rd G
 
 /* ---------- Supabase connection. The publishable key is safe in the browser: tables are owner-only (RLS);
    workers can only call get_prestart and sign_prestart, which check today's QR code. ---------- */
-const APP_VERSION="v6";
+const APP_VERSION="v7";
 const SB_URL="https://aovloludvrjwiymwdyyp.supabase.co";
 const SB_KEY="sb_publishable_E63eM0gvd1phMBaAnXLQJA_QxZ4z4qc";
 const AUTH_KEY="sitePrestart.auth",LSC="sitePrestart.cache.v1",LSQ="sitePrestart.outbox.v1",LSG="sitePrestart.geo";
@@ -399,9 +406,15 @@ function pdfKit(){
   k.box=(x,y,on)=>{doc.setLineWidth(.3);doc.rect(x,y,2.8,2.8);if(on){doc.setLineWidth(.45);doc.line(x+.5,y+.5,x+2.3,y+2.3);doc.line(x+2.3,y+.5,x+.5,y+2.3)}doc.setLineWidth(.25)};
   k.GREY=GREY;return k;
 }
-async function buildPDF(r,sigs){
+async function buildPDF(r,sigs){return buildPDFs([{r,sigs}])}
+async function buildPDFs(list){
   if(!window.jspdf)throw new Error("The PDF tool didn't load. Reload the app.");
-  const k=pdfKit(),{doc,M,CW}=k,G=k.GREY;k.header();
+  const k=pdfKit();for(let i=0;i<list.length;i++){if(i)k.newPage();else k.header();await drawPrestart(k,list[i].r,list[i].sigs||[])}
+  k.footer();return k.doc.output("blob");
+}
+async function drawPrestart(k,r,sigs){
+  if(!window.jspdf)throw new Error("The PDF tool didn't load. Reload the app.");
+  const {doc,M,CW}=k,G=k.GREY;
   /* ---- page 1: details, issues, planned work, hazards ---- */
   const L=(t,w)=>({w,text:t,fill:G,bold:true,size:7,top:true}),V=(t,w)=>({w,text:t,size:8,top:true});
   k.row([L("PROJECT TITLE",.343),V(r.project,.316),L("DATE",.168),V(dmy(r.day),.173)],7);
@@ -449,8 +462,6 @@ async function buildPDF(r,sigs){
   k.row([{w:.247,text:"SITE SUPERVISOR/PERSON RESPONSIBLE",fill:G,bold:true,size:7,top:true},{w:.284,text:r.supervisor_name||"",size:8.5},{w:.217,text:"Signature",fill:G,bold:true,size:8,top:true},{w:.252,img:ss}],9);
   if(r.completed_at){k.font("normal",6.5);doc.setTextColor(110);doc.text(`Signed off ${dmy(r.day)} at ${fmtTime(r.completed_at)}`,k.W-M,k.y+3,{align:"right"});doc.setTextColor(0)}
   k.y+=5;k.font("italic",7.5);const P=doc.splitTextToSize(pdfClean(ACK_TEXT),CW-6);k.ensure(P.length*k.lh(7.5)+2);doc.text(P,M+3,k.y+2.5);
-  k.footer();
-  return doc.output("blob");
 }
 async function buildQrPDF(r){
   const k=pdfKit(),{doc,W,M,CW}=k;k.header();
@@ -934,7 +945,7 @@ function completeFlow(){
     const png=pad.png();if(!png){toast("Signature too big. Clear it and sign again.");return false}
     const x=edit();x.supervisor_name=name;x.supervisor_signature=png;x.completed_at=new Date().toISOString();markDay(cur);await flush();
     if(outbox.days[cur])toast("Completed on this phone. It will save when you have signal.");
-    render();setTimeout(pdfSheet,50);
+    render();setTimeout(()=>pdfSheet(true),50);
   });
   let pad=sigPad($("#cSig"));$("[data-clear=cSig]").onclick=()=>pad.clear();
 }
@@ -942,15 +953,60 @@ function reopen(){
   if(!confirm("Reopen this day? Your sign-off signature is removed and workers can sign again (if it's still today)."))return;
   const r=edit();r.completed_at=null;r.supervisor_signature=null;markDay(cur);soon(0);render();
 }
-async function pdfSheet(){
+let exFrom="",exTo="",exM="",exFresh=false;
+function exportIds(){if(!exFrom)return[];const a=exFrom,b=exTo||exFrom;if(a===b)return dayStatus(a)==="blank"?[]:[a];return Object.keys(days).filter(k=>k>=a&&k<=b&&dayStatus(k)!=="blank").sort()}
+function exportSheet(){
+  const [y,m]=exM.split("-").map(Number),first=new Date(y,m-1,1),lead=(first.getDay()+6)%7,n=new Date(y,m,0).getDate(),t=sydToday();
+  const lo=exFrom,hi=exTo||exFrom;
+  let cells="";for(let i=0;i<lead;i++)cells+='<span class="x"></span>';
+  for(let dd=1;dd<=n;dd++){const k=`${y}-${String(m).padStart(2,"0")}-${String(dd).padStart(2,"0")}`,st=dayStatus(k);
+    const inr=lo&&k>=lo&&k<=hi,edge=k===lo||k===hi;
+    cells+=`<button type="button" data-k="${k}" class="${st} ${k===t?"today":""} ${inr?"inr":""} ${edge?"edge":""}" aria-label="${esc(nice(k))}">${st!=="blank"?`<i class="dot ${st}"></i>`:""}${dd}</button>`}
+  const ids=exportIds();
+  const info=exFresh?`${shortDay(exFrom)} is selected. To choose several days, tap the first day, then the last day.`:!exFrom?"Tap the first day.":!exTo?`First day: ${shortDay(exFrom)}. Now tap the last day (or make a PDF of just this day).`:`${shortDay(exFrom)} to ${shortDay(exTo)}: ${ids.length} day${ids.length===1?"":"s"} with a pre-start.`;
+  const body=`<div class="calnav"><button type="button" id="xp" aria-label="Previous month">&lsaquo;</button><b>${esc(first.toLocaleDateString("en-AU",{month:"long",year:"numeric"}))}</b><button type="button" id="xn" aria-label="Next month">&rsaquo;</button></div>
+    <div class="cal ex">${["Mo","Tu","We","Th","Fr","Sa","Su"].map(x=>`<div class="h">${x}</div>`).join("")}${cells}</div>
+    <div class="legend"><span><i style="background:var(--ok);border-radius:50%"></i>Completed</span><span><i style="background:var(--wip);border-radius:50%"></i>Published</span><span><i style="background:var(--muted);border-radius:50%"></i>Draft</span><span><i style="background:rgba(255,49,49,.78)"></i>Will be printed</span></div>
+    <div class="empty" style="margin:6px 0"><b>${esc(info)}</b> Days without a pre-start are left out.</div>
+    <div class="btns"><button class="btn primary" id="mk" ${ids.length?"":"disabled"}>${ids.length>1?`Make PDF (${ids.length} days)`:"Make PDF"}</button></div>
+    <div id="msg" class="empty">Each day is laid out like the TF Group pre-start form, with signatures.</div>`;
+  sheet("Export PDF",body,null,null,b=>{
+    const mv=d=>{const dt=new Date(y,m-1+d,1);exM=`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}`;exportSheet()};
+    b.querySelector("#xp").onclick=()=>mv(-1);b.querySelector("#xn").onclick=()=>mv(1);
+    b.querySelectorAll("[data-k]").forEach(x=>x.onclick=()=>{const k=x.dataset.k;
+      if(!exFrom||exTo||exFresh){exFrom=k;exTo="";exFresh=false}else{if(k<exFrom){exTo=exFrom;exFrom=k}else exTo=k}
+      exportSheet()});
+    b.querySelector("#mk").onclick=async()=>{
+      const p=exportIds(),mm=b.querySelector("#msg");if(!p.length)return;
+      b.querySelector("#mk").disabled=true;mm.textContent=p.length>1?`Making the PDF (${p.length} days)…`:"Making the PDF…";
+      try{
+        if(online()){
+          const pub=p.filter(k=>days[k]&&days[k].published_at);
+          if(pub.length){const {data,error}=await sb.from("signoffs").select("id,day,person_id,name,typed_by_worker,signature,signed_at").in("day",pub).order("signed_at");
+            if(error)throw error;pub.forEach(k=>sigs[k]=(data||[]).filter(s=>s.day===k))}
+          const need=p.filter(k=>days[k]&&days[k].completed_at&&!days[k].supervisor_signature);
+          if(need.length){const {data}=await sb.from("prestarts").select("day,supervisor_signature").in("day",need);(data||[]).forEach(x=>{if(days[x.day])days[x.day].supervisor_signature=x.supervisor_signature})}
+        }
+        const blob=await buildPDFs(p.map(k=>({r:days[k],sigs:sigs[k]||[]})));
+        const r0=days[p[0]],dd=x=>dmy(x).replace(/\//g,"-");
+        const fn=p.length>1?`Pre-starts ${dd(p[0])} to ${dd(p[p.length-1])} ${pdfClean(r0.project||"").replace(/[\\\/:*?"<>|]+/g,"").trim()}`.trim()+".pdf":pdfName(r0);
+        fileButtons(mm,blob,fn,{emailTo:settings.builder_email||"",subject:p.length>1?`Daily pre-starts ${dmy(p[0])} to ${dmy(p[p.length-1])} - ${r0.project||""}`:`Daily pre-start ${dmy(p[0])} - ${r0.project||""}`});
+      }catch(e){console.error(e);mm.textContent="Couldn't make the PDF. Check your signal and try again."}
+      finally{const x=b.querySelector("#mk");if(x)x.disabled=false}
+    };
+  });
+}
+async function pdfSheet(justDone){
   const r=rec();
-  sheet("Pre-start PDF",`<div id="mm" class="empty">Making the PDF…</div>`,null,null,async b=>{
+  sheet(justDone===true?"Pre-start completed":"Pre-start PDF",`${justDone===true?`<div style="display:flex;gap:10px;align-items:center"><span class="done-ic" style="width:40px;height:40px;font-size:22px;flex:none">✓</span><b>Signed off at ${esc(fmtTime(r.completed_at))}. Do you want to download the PDF now?</b></div>`:""}<div id="mm" class="empty">Making the PDF…</div>`,null,null,async b=>{
+    if(justDone===true)$("#scl").textContent="Not now";
     const mm=b.querySelector("#mm");
     try{
       if(r.published_at&&online())await loadSigs(cur);
       if(r.completed_at&&!r.supervisor_signature&&online()){const {data}=await sb.from("prestarts").select("supervisor_signature").eq("day",cur).maybeSingle();if(data&&days[cur])days[cur].supervisor_signature=data.supervisor_signature}
       const blob=await buildPDF(rec(),sigs[cur]||[]);
       fileButtons(mm,blob,pdfName(r),{emailTo:settings.builder_email||"",subject:`Daily pre-start ${dmy(r.day)} - ${r.project||""}`});
+      if(justDone===true){const sh=mm.querySelector("#fShare"),dl=mm.querySelector("#fOpen");sh.classList.remove("primary");dl.classList.add("primary");dl.parentNode.insertBefore(dl,sh)}
       if(!r.completed_at)mm.insertAdjacentHTML("afterbegin",`<div class="empty" style="color:var(--warn)">Not completed yet: the supervisor sign-off is blank.</div>`);
     }catch(e){console.error(e);mm.textContent="Couldn't make the PDF: "+(e.message||e)}
   });
@@ -1070,7 +1126,7 @@ function supervisorMain(){
   $("#date").onclick=()=>{calM=cur.slice(0,7);calendar()};
   $("#prev").onclick=()=>go(shift(cur,-1));
   $("#next").onclick=()=>go(shift(cur,1));
-  $("#pdfBtn").onclick=pdfSheet;
+  $("#pdfBtn").onclick=()=>{exFrom=cur;exTo="";exFresh=true;exM=cur.slice(0,7);exportSheet()};
   document.querySelectorAll("[data-act]").forEach(b=>b.onclick=()=>({
     qr:()=>{const r=rec();if(r.completed_at){toast("This day is completed. Sign-ins are closed.");return}r.published_at?showQR(r):publish()},
     att:()=>{const c=$("#attCard");if(c)c.scrollIntoView({behavior:"smooth",block:"start"});else toast("Publish the day first. Attendance shows up here once people sign.")},
