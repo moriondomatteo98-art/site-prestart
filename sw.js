@@ -1,7 +1,7 @@
 /* Keeps the app itself on the phone so it opens with no signal.
    Pre-start data is NOT cached here: it lives in Supabase (and a copy in the app's own storage).
    Bump VERSION whenever index.html or the lib files change. */
-const VERSION = "site-prestart-v4";
+const VERSION = "site-prestart-v5";
 const SHELL = [
   "./", "./index.html", "./manifest.webmanifest",
   "./lib/supabase.js", "./lib/jspdf.umd.min.js", "./lib/qrcode.js",

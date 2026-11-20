@@ -279,7 +279,7 @@ const DEF_SETTINGS={project:"Greenwich Hospital",site_address:"97-115 River Rd G
 
 /* ---------- Supabase connection. The publishable key is safe in the browser: tables are owner-only (RLS);
    workers can only call get_prestart and sign_prestart, which check today's QR code. ---------- */
-const APP_VERSION="v4";
+const APP_VERSION="v5";
 const SB_URL="https://aovloludvrjwiymwdyyp.supabase.co";
 const SB_KEY="sb_publishable_E63eM0gvd1phMBaAnXLQJA_QxZ4z4qc";
 const AUTH_KEY="sitePrestart.auth",LSC="sitePrestart.cache.v1",LSQ="sitePrestart.outbox.v1",LSG="sitePrestart.geo";
@@ -452,7 +452,7 @@ async function buildPDF(r,sigs){
 async function buildQrPDF(r){
   const k=pdfKit(),{doc,W,M,CW}=k;k.header();
   k.font("bold",24);doc.text(pdfClean(r.project||"Daily pre-start"),W/2,k.y+12,{align:"center"});
-  k.font("normal",13);doc.text(pdfClean([r.site_address,[r.work_location,r.building,r.level].filter(Boolean).join(" / ")].filter(Boolean).join("  ·  ")),W/2,k.y+20,{align:"center",maxWidth:CW});
+  k.font("normal",13);doc.text(pdfClean(r.site_address||""),W/2,k.y+20,{align:"center",maxWidth:CW});
   k.font("bold",16);doc.text(nice(r.day),W/2,k.y+31,{align:"center"});
   const m=qrMatrix(qrLink(r)),n=m.length,size=140,cell=size/(n+8),x0=(W-size)/2,y0=k.y+38;
   doc.setFillColor(0);m.forEach((row,ri)=>row.forEach((on,ci)=>{if(on)doc.rect(x0+(ci+4)*cell,y0+(ri+4)*cell,cell+.02,cell+.02,"F")}));
