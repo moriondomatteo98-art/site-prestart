@@ -17,3 +17,7 @@ How it works:
 Security: only the public (publishable) Supabase key is in the code. Row Level Security on every table means only
 the supervisor account (listed in `app_owner`) can read or write anything. Workers can only call two database
 functions, `get_prestart` and `sign_prestart`, which check the day's QR code and slow down anyone guessing codes.
+
+Adding a supervisor: in Supabase, Authentication → Users → Add user → Send invitation. They get an email, tap the
+link, and the app asks for their first name, surname and a password. Every login becomes a supervisor automatically
+(sign-ups are off, so only the owner can create logins). To remove one, delete their user in Supabase.

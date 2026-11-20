@@ -246,3 +246,18 @@ language sql stable security definer set search_path = '' as $$
 $$;
 revoke all on function public.list_supervisors() from public, anon;
 grant execute on function public.list_supervisors() to authenticated;
+
+-- Sign-ups are turned off, so the only way to get a login is for the owner to create/invite it in the dashboard.
+-- Every such login becomes a supervisor automatically (the app then asks them for their name, and a password if invited).
+create or replace function private.add_supervisor() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  insert into public.app_owner (user_id, name)
+  values (new.id, left(coalesce(new.raw_user_meta_data->>'name', ''), 80))
+  on conflict (user_id) do nothing;
+  return new;
+end $$;
+revoke all on function private.add_supervisor() from public, anon, authenticated;
+drop trigger if exists on_auth_user_created_add_supervisor on auth.users;
+create trigger on_auth_user_created_add_supervisor after insert on auth.users
+  for each row execute function private.add_supervisor();

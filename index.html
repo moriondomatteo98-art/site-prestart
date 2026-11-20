@@ -291,7 +291,7 @@ const DEF_SETTINGS={project:"Greenwich Hospital",site_address:"97-115 River Rd G
 
 /* ---------- Supabase connection. The publishable key is safe in the browser: tables are owner-only (RLS);
    workers can only call get_prestart and sign_prestart, which check today's QR code. ---------- */
-const APP_VERSION="v15";
+const APP_VERSION="v16";
 const SB_URL="https://aovloludvrjwiymwdyyp.supabase.co";
 const SB_KEY="sb_publishable_E63eM0gvd1phMBaAnXLQJA_QxZ4z4qc";
 const AUTH_KEY="sitePrestart.auth",LSC="sitePrestart.cache.v1",LSQ="sitePrestart.outbox.v1",LSG="sitePrestart.geo";
@@ -663,8 +663,9 @@ async function pull(){
         const x=clone(days[k]);if(srv&&srv.token&&!x.token){x.token=srv.token;x.published_at=srv.published_at}nd[k]=x;outbox.days[k]={...clone(x),_at:loc._at}}
       days=nd}
     pulled=true;
-    try{const sp=await sb.rpc("list_supervisors");if(!sp.error&&Array.isArray(sp.data))sups=sp.data}catch(e){}
+    try{const sp=await sb.rpc("list_supervisors");if(!sp.error&&Array.isArray(sp.data)){const old=sups;sups=sp.data;sups.forEach(x=>{const o=old.find(y=>y.user_id===x.user_id);if(o&&o.name&&!x.name)x.name=o.name})}}catch(e){}
     saveCache();render();await loadSigs(cur);
+    {const me=sups.find(x=>x.is_me);if(me&&(!me.name||INVITE))setupSheet(INVITE)}
   }catch(e){console.warn(e)}
   flush();
 }
@@ -1112,6 +1113,26 @@ $("#lgForgot").onclick=async()=>{
   try{const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
     if(error)throw error;lgErr("If that's your account, a reset link is on its way. Open it on this phone.",true)}catch(x){lgErr("Couldn't send the email. Try again later.")}
 };
+/* First login of a new supervisor (from the invite email), or a login with no name yet. */
+let INVITE=false,setupOpen=false;
+function setupSheet(withPw){
+  if(setupOpen)return;setupOpen=true;const me=sups.find(x=>x.is_me);if(!me){setupOpen=false;return}
+  const [f0,...l0]=String(me.name||"").split(" ");
+  sheet(withPw?"Set up your account":"Your name",`<div class="empty">${withPw?"Welcome! You've been added as a supervisor for the daily pre-start. Enter your name and choose a password.":"Enter your name. It's shown when you complete a pre-start and printed on the PDF."}</div>
+    <div class="row"><label>First name<input type="text" id="uF" value="${esc(f0||"")}" autocomplete="given-name" autocapitalize="words"></label><label>Surname<input type="text" id="uL" value="${esc(l0.join(" "))}" autocomplete="family-name" autocapitalize="words"></label></div>
+    ${withPw?`<label>Password<input type="password" id="uP" autocomplete="new-password" minlength="8"></label><label>Password again<input type="password" id="uP2" autocomplete="new-password"></label><div class="empty">At least 8 characters.</div>`:""}`,"Save",async b=>{
+    const f=b.querySelector("#uF").value.trim(),l=b.querySelector("#uL").value.trim();
+    if(!f||!l){toast("Enter your first name and surname");return false}
+    if(withPw){const pw=b.querySelector("#uP").value;if(pw.length<8){toast("Use at least 8 characters for the password");return false}
+      if(pw!==b.querySelector("#uP2").value){toast("The two passwords don't match");return false}
+      const {error}=await sb.auth.updateUser({password:pw});if(error){toast(error.message);return false}}
+    const name=(f+" "+l).slice(0,80);const {error}=await sb.from("app_owner").update({name}).eq("user_id",me.user_id);
+    if(error){toast("Couldn't save your name. Check your signal and try again.");return false}
+    me.name=name;sups.forEach(x=>{if(x.user_id===me.user_id)x.name=name});INVITE=false;saveCache();setupOpen=false;toast(withPw?"All set. Welcome, "+f+"!":"Saved");
+  });
+  $("#scl").hidden=!!withPw; // an invited supervisor must finish setting up
+  const done=()=>{setupOpen=false};$("#dlg").addEventListener("close",done,{once:true});
+}
 function newPassword(){
   sheet("Set a new password",`<label>New password<input type="password" id="np" autocomplete="new-password" minlength="8"></label><div class="empty">At least 8 characters.</div>`,"Save password",async b=>{
     const pw=b.querySelector("#np").value;if(pw.length<8){toast("Use at least 8 characters");return false}
@@ -1128,6 +1149,7 @@ async function logout(){
 }
 
 function supervisorMain(){
+  INVITE=/type=invite/.test(location.hash);
   $(".top .r2").hidden=false;$("#bar").hidden=false;$("#pdfBtn").hidden=false;
   loadCache();
   const h0=(location.hash||"").slice(1);cur=isDate(h0)?h0:sydToday();
@@ -1137,7 +1159,7 @@ function supervisorMain(){
     sb.auth.onAuthStateChange((ev,session)=>{
       if(ev==="PASSWORD_RECOVERY"){showLogin(false);setTimeout(newPassword,300)}
       else if(ev==="SIGNED_OUT"){showLogin(true)}
-      else if(session&&ev==="SIGNED_IN"&&!$("#login").hidden){showLogin(false);pull()}
+      else if(session&&ev==="SIGNED_IN"&&(!$("#login").hidden||INVITE)){showLogin(false);pull()}
     });
     if(storedUser())pull();
   }
