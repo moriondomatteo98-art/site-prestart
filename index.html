@@ -289,7 +289,7 @@ const DEF_SETTINGS={project:"Greenwich Hospital",site_address:"97-115 River Rd G
 
 /* ---------- Supabase connection. The publishable key is safe in the browser: tables are owner-only (RLS);
    workers can only call get_prestart and sign_prestart, which check today's QR code. ---------- */
-const APP_VERSION="v8";
+const APP_VERSION="v9";
 const SB_URL="https://aovloludvrjwiymwdyyp.supabase.co";
 const SB_KEY="sb_publishable_E63eM0gvd1phMBaAnXLQJA_QxZ4z4qc";
 const AUTH_KEY="sitePrestart.auth",LSC="sitePrestart.cache.v1",LSQ="sitePrestart.outbox.v1",LSG="sitePrestart.geo";
@@ -505,7 +505,7 @@ const WERR={invalid:"This QR code doesn't work today. Ask your supervisor for to
   locked:"Too many tries from this phone. Wait 15 minutes, then scan the QR code again.",
   closed:"Today's pre-start has already been signed off by the supervisor. Speak to your supervisor.",
   signature:"Your signature didn't come through. Clear it and sign again.",
-  name:"Type your full name.",person:"That name was just removed from the list. Pick your name again, or type it.",
+  name:"Type your full name.",person:"That name was just removed from the list. Ask your supervisor.",
   full:"The sign-in sheet is full. Speak to your supervisor.",duplicate:null};
 function workerMain(day,token){
   document.body.classList.add("worker");W.day=day;W.token=token;wLoad();
@@ -557,24 +557,20 @@ function wStep2(){
   <section class="card"><h2>Acknowledgment</h2><div class="empty" style="margin-top:-6px">By signing you are stating that</div>
     <div class="box3">${BOXES.map(b=>`<section><h3>${esc(b.t)}</h3><ol>${b.items.map(i=>`<li>${esc(i)}</li>`).join("")}</ol></section>`).join("")}</div></section>
   <section class="card"><h2>Your name</h2>
-    <div id="wPickWrap"${d.people.length?"":" hidden"}><select id="wSel" aria-label="Select your name" style="font-weight:600"></select></div>
-    <div id="wTypeWrap"${d.people.length?" hidden":""}><label>Type your full name<input type="text" id="wTyped" maxlength="60" autocomplete="name" autocapitalize="words" spellcheck="false"></label>
-      ${d.people.length?`<button type="button" class="del" id="wBackList" style="align-self:flex-start;padding:0;margin-top:6px">‹ Pick from the list instead</button>`:""}</div>
+    ${d.people.length?`<select id="wSel" aria-label="Select your name" style="font-weight:600"></select>`:`<div class="empty" style="color:var(--crit);font-weight:600">There are no names on the list yet.</div>`}
+    <div class="empty">Can't find your name? Ask your supervisor to add you to the list.</div>
   </section>
   <section class="card"><h2>Your signature</h2>${padHTML("wSig")}</section>
   <div id="wErr" class="err" role="alert" hidden></div>
   <button class="btn primary big" id="wSign">Sign pre-start</button>
   <button class="btn" id="wBack">‹ Back to the pre-start</button>`;
-  if(!d.people.length)W.typed=true;
-  W.pad=sigPad($("#wSig"));$("#wSig").addEventListener("sig",()=>wErr(""));$("#wTyped").oninput=()=>wErr("");$("[data-clear=wSig]").onclick=()=>W.pad.clear();
-  const NOT="__notlisted__";
-  const draw=()=>{const sel=$("#wSel");
-    sel.innerHTML=`<option value="">Select your name</option>${d.people.map(p=>`<option value="${esc(p.id)}" ${p.signed?"disabled":""}>${esc(p.name)}${p.signed?" (signed)":""}</option>`).join("")}<option value="${NOT}">My name isn't listed</option>`;
+  W.typed=false;
+  W.pad=sigPad($("#wSig"));$("#wSig").addEventListener("sig",()=>wErr(""));$("[data-clear=wSig]").onclick=()=>W.pad.clear();
+  const draw=()=>{const sel=$("#wSel");if(!sel)return;
+    sel.innerHTML=`<option value="">Select your name</option>${d.people.map(p=>`<option value="${esc(p.id)}" ${p.signed?"disabled":""}>${esc(p.name)}${p.signed?" (signed)":""}</option>`).join("")}`;
     sel.value=W.pick&&d.people.some(p=>p.id===W.pick&&!p.signed)?W.pick:""};
-  const showType=on=>{W.typed=on;if(on)W.pick=null;$("#wPickWrap").hidden=on;$("#wTypeWrap").hidden=!on;if(on)setTimeout(()=>$("#wTyped").focus(),50);else draw()};
   draw();
-  $("#wSel").onchange=()=>{const v=$("#wSel").value;wErr("");if(v===NOT){showType(true);return}W.pick=v||null;W.typed=false};
-  const bl=$("#wBackList");if(bl)bl.onclick=()=>showType(false);
+  if($("#wSel"))$("#wSel").onchange=()=>{wErr("");W.pick=$("#wSel").value||null};
   W.redraw=draw;
   $("#wBack").onclick=wStep1;
   $("#wSign").onclick=wSign;
@@ -583,7 +579,7 @@ function wErr(t){const e=$("#wErr");e.textContent=t;e.hidden=!t;if(t)try{e.scrol
 async function wSign(){
   const btn=$("#wSign");if(btn.disabled)return;
   const typed=W.typed?$("#wTyped").value.replace(/\s+/g," ").trim():"";
-  if(!W.typed&&!W.pick){wErr("Select your name (or choose \"My name isn't listed\").");return}
+  if(!W.typed&&!W.pick){wErr("Select your name. If it isn't there, ask your supervisor to add you.");return}
   if(W.typed&&typed.length<2){wErr("Type your full name.");return}
   if(W.pad.empty()){wErr("Sign in the box with your finger.");return}
   const png=W.pad.png();if(!png){wErr(WERR.signature);return}
