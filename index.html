@@ -279,7 +279,7 @@ const DEF_SETTINGS={project:"Greenwich Hospital",site_address:"97-115 River Rd G
 
 /* ---------- Supabase connection. The publishable key is safe in the browser: tables are owner-only (RLS);
    workers can only call get_prestart and sign_prestart, which check today's QR code. ---------- */
-const APP_VERSION="v2";
+const APP_VERSION="v3";
 const SB_URL="https://aovloludvrjwiymwdyyp.supabase.co";
 const SB_KEY="sb_publishable_E63eM0gvd1phMBaAnXLQJA_QxZ4z4qc";
 const AUTH_KEY="sitePrestart.auth",LSC="sitePrestart.cache.v1",LSQ="sitePrestart.outbox.v1",LSG="sitePrestart.geo";
@@ -745,11 +745,21 @@ function normRisks(l){return (Array.isArray(l)?l:[]).filter(r=>r&&r.name).map(r=
 const hazText=R=>R.map(r=>`${r.name} (${sevLabel(r.level)})${r.controls.length?": "+r.controls.join("; "):""}`).join("\n");
 const stdRisks=()=>{if(!Array.isArray(settings.risk_list))settings.risk_list=[];return settings.risk_list};
 function saveDayRisks(){const x=edit();x.risks=normRisks(x.risks);x.hazards=hazText(x.risks);markDay(cur);soon();drawRisks()}
-function dayRisks(){const x=edit();if(!Array.isArray(x.risks))x.risks=[];return x.risks}
+/* Days saved before v2 kept hazards as plain lines: turn each line into a risk card (name + controls, Medium). */
+function linesToRisks(t){return lines(t).map(l=>{
+  let m=l.match(/^(.*?) \((Low|Medium|High)\)(?::\s*(.*))?$/);
+  if(m)return{name:m[1],level:m[2]==="High"?"high":m[2]==="Low"?"low":"med",controls:m[3]?m[3].split(/;\s*/).filter(Boolean):[]};
+  const sent=x=>x.split(/(?<=\.)\s+/).map(y=>y.trim()).filter(Boolean);
+  m=l.match(/^([^.:]{2,60}):\s*(.+)$/);
+  if(m)return{name:m[1].trim(),level:"med",controls:sent(m[2])};
+  const S=sent(l);return{name:S[0].replace(/\.$/,""),level:"med",controls:S.slice(1)}})}
+function ensureRisks(x){if((!Array.isArray(x.risks)||!x.risks.length)&&lines(x.hazards).length){x.risks=linesToRisks(x.hazards);return true}if(!Array.isArray(x.risks))x.risks=[];return false}
+function dayRisks(){const x=edit();ensureRisks(x);return x.risks}
 function saveStd(){markSettings();soon()}
 function drawRisks(){
-  const e=$("#rkList");if(!e)return;const r=rec(),locked=!!r.completed_at,R=normRisks(r.risks);
-  if(!R.length&&lines(r.hazards).length){e.innerHTML=ulist(r.hazards);return} // older day saved as plain lines
+  const e=$("#rkList");if(!e)return;let r=rec();const locked=!!r.completed_at;
+  if(!locked&&days[cur]&&ensureRisks(days[cur])){saveDayRisks();return} // older day: convert and save once
+  const R=locked&&!(r.risks||[]).length?linesToRisks(r.hazards):normRisks(r.risks);
   e.innerHTML=R.length?R.map((x,i)=>`<div class="rk"><div class="t"><span>${esc(x.name)}</span><span class="pill ${esc(x.level)}">${sevLabel(x.level)}</span></div>
     ${x.controls.length?`<ul>${x.controls.map(c=>`<li>${esc(c)}</li>`).join("")}</ul>`:""}
     ${locked?"":`<div style="display:flex;gap:16px"><button class="del" data-redit="${i}" style="padding:0;color:var(--ink)">Edit</button><button class="del" data-rdel="${i}" style="padding:0">Remove</button></div>`}</div>`).join("")
