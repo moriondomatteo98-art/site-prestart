@@ -289,7 +289,7 @@ const DEF_SETTINGS={project:"Greenwich Hospital",site_address:"97-115 River Rd G
 
 /* ---------- Supabase connection. The publishable key is safe in the browser: tables are owner-only (RLS);
    workers can only call get_prestart and sign_prestart, which check today's QR code. ---------- */
-const APP_VERSION="v10";
+const APP_VERSION="v11";
 const SB_URL="https://aovloludvrjwiymwdyyp.supabase.co";
 const SB_KEY="sb_publishable_E63eM0gvd1phMBaAnXLQJA_QxZ4z4qc";
 const AUTH_KEY="sitePrestart.auth",LSC="sitePrestart.cache.v1",LSQ="sitePrestart.outbox.v1",LSG="sitePrestart.geo";
@@ -525,10 +525,6 @@ async function wLoad(){
   const {net,d}=await wFetch();
   if(net){wMsg("No signal","Couldn't load today's pre-start. Check your signal and try again.",true);return}
   if(!d||d.error){wMsg(d&&d.error==="locked"?"Too many tries":"This QR code doesn't work today",WERR[(d&&d.error)||"invalid"]);return}
-  let mine=null;try{mine=JSON.parse(localStorage.getItem(LSW+W.day)||"null")}catch(e){}
-  if(mine&&mine.name){ // this phone already signed today: show that, unless the supervisor removed the sign-in
-    if((d.signed||[]).some(n=>n.toLowerCase()===String(mine.name).toLowerCase())){wDone(mine.name,mine.at,true);return}
-    try{localStorage.removeItem(LSW+W.day)}catch(e){}}
   if(d.completed){wMsg("Today's pre-start is closed",WERR.closed);return}
   W.d=d;W.pick=null;W.typed=false;W.ack=false;wStep1();
 }
@@ -599,13 +595,10 @@ async function wSign(){
   wErr(WERR[d.error]||"Something went wrong. Try again.");
 }
 async function refreshNames(){const {d}=await wFetch();if(d&&!d.error){W.d.people=d.people;W.pick=null;if(W.redraw&&$("#wSel"))W.redraw()}}
-/* One phone = one person: after signing, this phone only shows "Signed" for the rest of the day. */
-const LSW="sitePrestart.signed.";
-function wDone(name,at,earlier){
-  try{localStorage.setItem(LSW+W.day,JSON.stringify({name,at}))}catch(e){}
+function wDone(name,at){
   window.scrollTo(0,0);
   $("#app").innerHTML=`<section class="card"><div class="donebox"><div class="done-ic">✓</div><div class="h">Signed</div>
-    <div style="font:600 20px var(--display)">${esc(name)}</div><div class="empty" style="font-size:15px">${earlier?"Signed at ":""}${esc(fmtTime(at))} · ${esc(nice(W.day))}</div>
+    <div style="font:600 20px var(--display)">${esc(name)}</div><div class="empty" style="font-size:15px">${esc(fmtTime(at))} · ${esc(nice(W.day))}</div>
     <div class="empty">You're signed on to today's pre-start. You can close this page.</div></div></section>`;
 }
 
