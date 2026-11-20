@@ -128,6 +128,8 @@ dialog h2{font-size:20px}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .btn:disabled{opacity:.45;cursor:default}
 .btn.big{min-height:54px;font-size:16px;width:100%}
+.chip{min-height:38px;padding:0 12px;border-radius:99px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;font-size:14px;font-weight:600}
+.chip[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .sev{display:flex;gap:8px}
 .sev button{flex:1;min-height:44px;border-radius:8px;border:2px solid var(--line);background:var(--bg);font-weight:600;cursor:pointer}
 .sev button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
@@ -289,7 +291,7 @@ const DEF_SETTINGS={project:"Greenwich Hospital",site_address:"97-115 River Rd G
 
 /* ---------- Supabase connection. The publishable key is safe in the browser: tables are owner-only (RLS);
    workers can only call get_prestart and sign_prestart, which check today's QR code. ---------- */
-const APP_VERSION="v12";
+const APP_VERSION="v13";
 const SB_URL="https://aovloludvrjwiymwdyyp.supabase.co";
 const SB_KEY="sb_publishable_E63eM0gvd1phMBaAnXLQJA_QxZ4z4qc";
 const AUTH_KEY="sitePrestart.auth",LSC="sitePrestart.cache.v1",LSQ="sitePrestart.outbox.v1",LSG="sitePrestart.geo";
@@ -649,7 +651,7 @@ async function pull(){
     if(o.error){if(o.status===401||/JWT/i.test(o.error.message||"")){showLogin(true)}finalStatus();return}
     owner=!!(o.data&&o.data.length);if(!owner){notOwner();return}
     const [st,pp,ds]=await Promise.all([sb.from("settings").select(SET_COLS.join(",")).eq("id",1).maybeSingle(),
-      sb.from("people").select("id,name,active").order("name"),sb.from("prestarts").select(LIST_COLS)]);
+      sb.from("people").select("id,name,active,supervisor").order("name"),sb.from("prestarts").select(LIST_COLS)]);
     if(st.data&&!outbox.settings)settings={...DEF_SETTINGS,...st.data};
     if(pp.data)people=pp.data;
     if(ds.data){const keep={};for(const k in days)if(days[k]&&days[k].supervisor_signature)keep[k]=days[k].supervisor_signature;
@@ -892,7 +894,7 @@ function drawAtt(){
   e.querySelector("#attRef").onclick=()=>{if(!online()){toast("No signal");return}loadSigs(cur).then(()=>toast("Up to date"))};
   e.querySelectorAll("[data-rm]").forEach(b=>b.onclick=async()=>{const s=S.find(x=>x.id===b.dataset.rm);if(!s||!confirm(`Remove ${s.name}'s sign-in? They can then sign again.`))return;
     const {error}=await sb.from("signoffs").delete().eq("id",s.id);if(error){toast("Couldn't remove it. Check your signal.");return}toast("Removed");loadSigs(cur)});
-  e.querySelectorAll("[data-addp]").forEach(b=>b.onclick=async()=>{const {data,error}=await sb.from("people").insert({name:b.dataset.addp}).select("id,name,active").single();
+  e.querySelectorAll("[data-addp]").forEach(b=>b.onclick=async()=>{const {data,error}=await sb.from("people").insert({name:b.dataset.addp}).select("id,name,active,supervisor").single();
     if(error){toast("Couldn't add. Check your signal.");return}people.push(data);people.sort((a,b)=>a.name.localeCompare(b.name));saveCache();toast("Added to the people list");drawAtt()});
 }
 
@@ -931,10 +933,12 @@ function completeFlow(){
   if(!r.published_at){toast("Publish the day first, so workers can sign.");return}
   const n=(sigs[cur]||[]).length;
   sheet("Complete pre-start",`<div class="empty">${n} ${n===1?"person has":"people have"} signed. Once you complete it, sign-ins close and the PDF is made.</div>
-    <label>Site supervisor / person responsible<input type="text" id="cName" value="${esc(r.supervisor_name||r.leader||"")}" autocomplete="name" autocapitalize="words"></label>
+    ${(()=>{const SUP=activePeople().filter(p=>p.supervisor),want=(r.supervisor_name||r.leader||"").toLowerCase(),hit=SUP.find(p=>p.name.toLowerCase()===want);
+      return SUP.length?`<label>Site supervisor / person responsible<select id="cName" style="font-weight:600"><option value="">Select supervisor</option>${SUP.map(p=>`<option ${hit===p?"selected":""}>${esc(p.name)}</option>`).join("")}</select></label>`
+        :`<label>Site supervisor / person responsible<input type="text" id="cName" value="${esc(r.supervisor_name||r.leader||"")}" autocomplete="name" autocapitalize="words"></label><div class="empty" style="margin-top:-6px">Tip: mark supervisors in <b>People</b> to pick them from a list here.</div>`})()}
     <div><div class="empty" style="margin-bottom:6px">Your signature</div>${padHTML("cSig")}</div>
     <label class="chk"><input type="checkbox" id="cMe" checked><span>Add me to the attendance with this signature (skipped if I've already signed)</span></label>`,"Complete and sign",async b=>{
-    const name=b.querySelector("#cName").value.trim();if(!name){toast("Type your name");return false}
+    const name=b.querySelector("#cName").value.trim();if(!name){toast(b.querySelector("select#cName")?"Select the supervisor":"Type your name");return false}
     if(pad.empty()){toast("Sign in the box with your finger");return false}
     const addMe=b.querySelector("#cMe").checked;
     if(!n&&!addMe&&!confirm("Nobody has signed yet. Complete anyway?"))return false;
@@ -1020,10 +1024,12 @@ async function pdfSheet(justDone){
 function peopleSheet(){
   const body=`<div style="display:flex;gap:8px"><input type="text" id="pName" placeholder="Full name" autocapitalize="words" autocomplete="off" aria-label="Full name" style="flex:1"><button class="btn primary" id="pAdd" type="button">Add</button></div>
     <details><summary class="empty" style="cursor:pointer">Paste a list of names (one per line)</summary><div style="display:flex;flex-direction:column;gap:8px;margin-top:8px"><textarea id="pBulk" rows="6" placeholder="One name per line"></textarea><button class="btn" id="pBulkAdd" type="button">Add all</button></div></details>
-    <div class="empty" id="pCount"></div><div class="dl" id="pList"></div>`;
+    <div class="empty" id="pCount"></div><div class="empty" style="margin-top:-6px">Tap <b>Supervisor</b> on the people who can sign off pre-starts.</div><div class="dl" id="pList"></div>`;
   sheet("People",body,null,null,b=>{
     const draw=()=>{const A=activePeople();b.querySelector("#pCount").textContent=`${A.length} ${A.length===1?"name":"names"} on the list. Workers pick their name from this list.`;
-      b.querySelector("#pList").innerHTML=A.length?A.map(p=>`<div class="it"><span>${esc(p.name)}</span><button class="del" data-pid="${esc(p.id)}" type="button">Remove</button></div>`).join(""):`<div class="empty">No names yet.</div>`;
+      b.querySelector("#pList").innerHTML=A.length?A.map(p=>`<div class="it"><span>${esc(p.name)}</span><span style="display:flex;gap:6px;align-items:center;flex:none"><button class="chip" data-sup="${esc(p.id)}" aria-pressed="${!!p.supervisor}" type="button" style="min-height:32px;font-size:13px">${p.supervisor?"✓ ":""}Supervisor</button><button class="del" data-pid="${esc(p.id)}" type="button">Remove</button></span></div>`).join(""):`<div class="empty">No names yet.</div>`;
+      b.querySelectorAll("[data-sup]").forEach(x=>x.onclick=async()=>{const p=people.find(q=>q.id===x.dataset.sup);if(!p)return;if(!online()){toast("No signal. Try again when you're online.");return}
+        const v=!p.supervisor;const {error}=await sb.from("people").update({supervisor:v}).eq("id",p.id);if(error){toast("Couldn't save. Check your signal.");return}p.supervisor=v;saveCache();draw()});
       b.querySelectorAll("[data-pid]").forEach(x=>x.onclick=async()=>{const p=people.find(q=>q.id===x.dataset.pid);if(!p||!confirm(`Remove ${p.name} from the list? Their past sign-ins stay.`))return;
         const {error}=await sb.from("people").delete().eq("id",p.id);if(error){toast("Couldn't remove. Check your signal.");return}people=people.filter(q=>q.id!==p.id);saveCache();draw();render()})};
     const add=async names=>{
@@ -1031,7 +1037,7 @@ function peopleSheet(){
       const have=new Set(people.map(p=>p.name.toLowerCase()));const seen=new Set();
       const rows=names.map(n=>n.replace(/\s+/g," ").trim().slice(0,80)).filter(n=>n.length>=2&&!have.has(n.toLowerCase())&&!seen.has(n.toLowerCase())&&seen.add(n.toLowerCase())).map(name=>({name}));
       if(!rows.length){toast(names.length>1?"All those names are already on the list":"That name is already on the list (or too short)");return 0}
-      const {data,error}=await sb.from("people").insert(rows).select("id,name,active");if(error){toast("Couldn't add. Check your signal.");return 0}
+      const {data,error}=await sb.from("people").insert(rows).select("id,name,active,supervisor");if(error){toast("Couldn't add. Check your signal.");return 0}
       people=people.concat(data).sort((a,b)=>a.name.localeCompare(b.name));saveCache();draw();render();return data.length};
     b.querySelector("#pAdd").onclick=async()=>{const i=b.querySelector("#pName");if(await add([i.value])){i.value="";i.focus();okMsg("Added")}};
     b.querySelector("#pName").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();b.querySelector("#pAdd").click()}};

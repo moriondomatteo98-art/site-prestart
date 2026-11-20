@@ -228,3 +228,4 @@ on conflict (id) do nothing;
 alter table public.prestarts add column if not exists risks jsonb not null default '[]'::jsonb;
 alter table public.settings add column if not exists risk_list jsonb not null default '[]'::jsonb;
 alter table public.settings add column if not exists default_risks jsonb not null default '[]'::jsonb;
+alter table public.people add column if not exists supervisor boolean not null default false; -- can sign off pre-starts (shown in the Complete dropdown)
