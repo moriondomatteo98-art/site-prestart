@@ -289,7 +289,7 @@ const DEF_SETTINGS={project:"Greenwich Hospital",site_address:"97-115 River Rd G
 
 /* ---------- Supabase connection. The publishable key is safe in the browser: tables are owner-only (RLS);
    workers can only call get_prestart and sign_prestart, which check today's QR code. ---------- */
-const APP_VERSION="v11";
+const APP_VERSION="v12";
 const SB_URL="https://aovloludvrjwiymwdyyp.supabase.co";
 const SB_KEY="sb_publishable_E63eM0gvd1phMBaAnXLQJA_QxZ4z4qc";
 const AUTH_KEY="sitePrestart.auth",LSC="sitePrestart.cache.v1",LSQ="sitePrestart.outbox.v1",LSG="sitePrestart.geo";
@@ -932,11 +932,21 @@ function completeFlow(){
   const n=(sigs[cur]||[]).length;
   sheet("Complete pre-start",`<div class="empty">${n} ${n===1?"person has":"people have"} signed. Once you complete it, sign-ins close and the PDF is made.</div>
     <label>Site supervisor / person responsible<input type="text" id="cName" value="${esc(r.supervisor_name||r.leader||"")}" autocomplete="name" autocapitalize="words"></label>
-    <div><div class="empty" style="margin-bottom:6px">Your signature</div>${padHTML("cSig")}</div>`,"Complete and sign",async b=>{
+    <div><div class="empty" style="margin-bottom:6px">Your signature</div>${padHTML("cSig")}</div>
+    <label class="chk"><input type="checkbox" id="cMe" checked><span>Add me to the attendance with this signature (skipped if I've already signed)</span></label>`,"Complete and sign",async b=>{
     const name=b.querySelector("#cName").value.trim();if(!name){toast("Type your name");return false}
     if(pad.empty()){toast("Sign in the box with your finger");return false}
-    if(!n&&!confirm("Nobody has signed yet. Complete anyway?"))return false;
+    const addMe=b.querySelector("#cMe").checked;
+    if(!n&&!addMe&&!confirm("Nobody has signed yet. Complete anyway?"))return false;
     const png=pad.png();if(!png){toast("Signature too big. Clear it and sign again.");return false}
+    if(addMe){ // the supervisor goes on the attendance too, with the same signature
+      const S=sigs[cur]||[],lo=name.toLowerCase();
+      if(!S.some(z=>z.name.toLowerCase()===lo)){
+        if(!online()){toast("No signal: you can't be added to the attendance right now. Try again when you're online, or untick the box.");return false}
+        const per=people.find(p=>p.active&&p.name.toLowerCase()===lo);
+        const {error}=await sb.from("signoffs").insert({day:cur,person_id:per?per.id:null,name:per?per.name:name,typed_by_worker:false,signature:png});
+        if(error&&error.code!=="23505"){toast("Couldn't add you to the attendance. Check your signal and try again.");return false}
+        await loadSigs(cur)}}
     const x=edit();x.supervisor_name=name;x.supervisor_signature=png;x.completed_at=new Date().toISOString();markDay(cur);await flush();
     if(outbox.days[cur])toast("Completed on this phone. It will save when you have signal.");
     render();setTimeout(()=>pdfSheet(true),50);
