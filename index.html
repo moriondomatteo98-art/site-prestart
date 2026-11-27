@@ -291,7 +291,7 @@ const DEF_SETTINGS={project:"Greenwich Hospital",site_address:"97-115 River Rd G
 
 /* ---------- Supabase connection. The publishable key is safe in the browser: tables are owner-only (RLS);
    workers can only call get_prestart and sign_prestart, which check today's QR code. ---------- */
-const APP_VERSION="v19";
+const APP_VERSION="v20";
 const SB_URL="https://aovloludvrjwiymwdyyp.supabase.co";
 const SB_KEY="sb_publishable_E63eM0gvd1phMBaAnXLQJA_QxZ4z4qc";
 const AUTH_KEY="sitePrestart.auth",LSC="sitePrestart.cache.v1",LSQ="sitePrestart.outbox.v1",LSG="sitePrestart.geo";
@@ -462,7 +462,7 @@ async function drawPrestart(k,r,sigs){
   let ss=null;if(r.supervisor_signature)ss={src:r.supervisor_signature,size:await imgSize(r.supervisor_signature)};
   k.ensure(9+16);
   k.row([{w:.247,text:"SITE SUPERVISOR/PERSON RESPONSIBLE",fill:G,bold:true,size:7,top:true},{w:.284,text:r.supervisor_name||"",size:8.5},{w:.217,text:"Signature",fill:G,bold:true,size:8,top:true},{w:.252,img:ss}],9);
-  if(r.completed_at){k.font("normal",6.5);doc.setTextColor(110);doc.text(`Signed off ${dmy(r.day)} at ${fmtTime(r.completed_at)}`,k.W-M,k.y+3,{align:"right"});doc.setTextColor(0)}
+  if(r.completed_at){const own=(sigs||[]).find(z=>z.name&&r.supervisor_name&&z.name.toLowerCase()===r.supervisor_name.toLowerCase());k.font("normal",6.5);doc.setTextColor(110);doc.text(`Signed off ${dmy(r.day)} at ${fmtTime(own?own.signed_at:r.completed_at)}`,k.W-M,k.y+3,{align:"right"});doc.setTextColor(0)}
   k.y+=5;k.font("italic",7.5);const P=doc.splitTextToSize(pdfClean(ACK_TEXT),CW-6);k.ensure(P.length*k.lh(7.5)+2);doc.text(P,M+3,k.y+2.5);
 }
 async function buildQrPDF(r){
