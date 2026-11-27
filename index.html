@@ -291,7 +291,7 @@ const DEF_SETTINGS={project:"Greenwich Hospital",site_address:"97-115 River Rd G
 
 /* ---------- Supabase connection. The publishable key is safe in the browser: tables are owner-only (RLS);
    workers can only call get_prestart and sign_prestart, which check today's QR code. ---------- */
-const APP_VERSION="v18";
+const APP_VERSION="v19";
 const SB_URL="https://aovloludvrjwiymwdyyp.supabase.co";
 const SB_KEY="sb_publishable_E63eM0gvd1phMBaAnXLQJA_QxZ4z4qc";
 const AUTH_KEY="sitePrestart.auth",LSC="sitePrestart.cache.v1",LSQ="sitePrestart.outbox.v1",LSG="sitePrestart.geo";
@@ -936,20 +936,19 @@ async function printQR(r){
 }
 
 /* ---------- complete / reopen / PDF ---------- */
-function completeFlow(){
+async function completeFlow(){
   const r=rec();
   if(r.completed_at){pdfSheet();return}
   if(!r.published_at){toast("Publish the day first, so workers can sign.");return}
   if(!String(r.leader||"").trim()){toast("Choose who leads the meeting in Day details first");const f=document.querySelector("[data-f=leader]");if(f){f.scrollIntoView({block:"center",behavior:"smooth"});setTimeout(()=>f.focus(),400)}return}
-  /* If a crew member led the meeting, the logged-in supervisor signs off as person responsible. */
-  const isSup=sups.some(x=>x.name&&x.name===r.leader),signer=isSup?r.leader:myName();
-  if(!signer){setupSheet(false);toast("Enter your name first, then tap Complete again");return}
+  const isSup=sups.some(x=>x.name&&x.name===r.leader);
+  if(!isSup)return crewComplete(r);
+  const signer=r.leader;
   const n=(sigs[cur]||[]).length;
   sheet("Complete pre-start",`<div class="empty">${n} ${n===1?"person has":"people have"} signed. Once you complete it, sign-ins close and the PDF is made.</div>
-    ${isSup?"":`<div style="font-size:16px">Meeting led by: <b>${esc(r.leader)}</b></div>`}
-    <div style="font-size:16px">Signing off as: <b>${esc(signer)}</b></div><div class="empty" style="margin-top:-8px">${isSup?"The supervisor chosen in Day details.":"Site supervisor / person responsible (you)."}</div>
+    <div style="font-size:16px">Signing off as: <b>${esc(signer)}</b></div><div class="empty" style="margin-top:-8px">The supervisor chosen in Day details.</div>
     <div><div class="empty" style="margin-bottom:6px">Your signature</div>${padHTML("cSig")}</div>
-    <label class="chk"><input type="checkbox" id="cMe" ${isSup?"checked":""}><span>Add ${esc(signer)} to the attendance with this signature (skipped if already signed)</span></label>`,"Complete and sign",async b=>{
+    <label class="chk"><input type="checkbox" id="cMe" checked><span>Add ${esc(signer)} to the attendance with this signature (skipped if already signed)</span></label>`,"Complete and sign",async b=>{
     const name=signer;
     if(pad.empty()){toast("Sign in the box with your finger");return false}
     const addMe=b.querySelector("#cMe").checked;
@@ -963,12 +962,28 @@ function completeFlow(){
         const {error}=await sb.from("signoffs").insert({day:cur,person_id:per?per.id:null,name:per?per.name:name,typed_by_worker:false,signature:png});
         if(error&&error.code!=="23505"){toast("Couldn't add you to the attendance. Check your signal and try again.");return false}
         await loadSigs(cur)}}
-    const x=edit();x.supervisor_name=name;x.supervisor_signature=png;x.completed_at=new Date().toISOString();markDay(cur);await flush();
-    if(outbox.days[cur])toast("Completed on this phone. It will save when you have signal.");
-    render();setTimeout(()=>pdfSheet(true),50);
+    finishComplete(name,png);
   });
   let pad=sigPad($("#cSig"));$("[data-clear=cSig]").onclick=()=>pad.clear();
-
+}
+async function finishComplete(name,png){
+  const x=edit();x.supervisor_name=name;x.supervisor_signature=png;x.completed_at=new Date().toISOString();markDay(cur);await flush();
+  if(outbox.days[cur])toast("Completed on this phone. It will save when you have signal.");
+  render();setTimeout(()=>pdfSheet(true),50);
+}
+/* A crew member led the meeting: their name and their attendance signature go in the sign-off row. */
+async function crewComplete(r){
+  if(online())await loadSigs(cur);
+  const lo=r.leader.toLowerCase(),mine=(sigs[cur]||[]).find(z=>z.name.toLowerCase()===lo);
+  if(!mine){toast(`${r.leader} hasn't signed the attendance yet. Once they've signed with the QR code, tap Complete again.`);return}
+  const n=(sigs[cur]||[]).length;
+  sheet("Complete pre-start",`<div class="empty">${n} ${n===1?"person has":"people have"} signed. Once you complete it, sign-ins close and the PDF is made.</div>
+    <div style="font-size:16px">Meeting led by: <b>${esc(r.leader)}</b></div>
+    <div class="empty" style="margin-top:-8px">Their name and the signature they gave on the attendance go in the sign-off at the bottom of the PDF.</div>
+    <img src="${esc(mine.signature)}" alt="Signature of ${esc(r.leader)}" style="max-width:100%;height:90px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px">`,"Complete",async()=>{
+    if(!online()){toast("No signal. Try again when you're online.");return false}
+    finishComplete(r.leader,mine.signature);
+  });
 }
 function reopen(){
   if(!confirm("Reopen this day? Your sign-off signature is removed and workers can sign again (if it's still today)."))return;
