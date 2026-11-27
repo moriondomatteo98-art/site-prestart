@@ -291,7 +291,7 @@ const DEF_SETTINGS={project:"Greenwich Hospital",site_address:"97-115 River Rd G
 
 /* ---------- Supabase connection. The publishable key is safe in the browser: tables are owner-only (RLS);
    workers can only call get_prestart and sign_prestart, which check today's QR code. ---------- */
-const APP_VERSION="v17";
+const APP_VERSION="v18";
 const SB_URL="https://aovloludvrjwiymwdyyp.supabase.co";
 const SB_KEY="sb_publishable_E63eM0gvd1phMBaAnXLQJA_QxZ4z4qc";
 const AUTH_KEY="sitePrestart.auth",LSC="sitePrestart.cache.v1",LSQ="sitePrestart.outbox.v1",LSG="sitePrestart.geo";
@@ -738,8 +738,11 @@ function render(){
     ${locked?"":`<div class="btns" style="margin-top:-4px"><button type="button" class="btn" id="wxGo" style="min-height:38px;font-size:14px">&#8635; Automatic weather</button><span class="empty" style="align-self:center">${r.weather_manual?"Typed by you":r.weather?"Filled in automatically":""}</span></div>`}
     <div class="row3">${fld("work_location","Work location",r.work_location)}${fld("building","Building",r.building)}${fld("level","Level",r.level)}</div>
     ${(()=>{const N=sups.map(x=>x.name).filter(Boolean);if(!N.length)return fld("leader","Supervisor / person leading the meeting",r.leader);
-      if(r.leader&&!N.includes(r.leader))N.push(r.leader);
-      return `<label>Supervisor / person leading the meeting<select data-f="leader" style="font-weight:600"><option value="">Select supervisor</option>${N.map(n=>`<option ${n===r.leader?"selected":""}>${esc(n)}</option>`).join("")}</select></label>`})()}
+      const lo=new Set(N.map(n=>n.toLowerCase())),C=activePeople().map(p=>p.name).filter(n=>!lo.has(n.toLowerCase()));
+      if(r.leader&&!N.includes(r.leader)&&!C.includes(r.leader))C.push(r.leader);
+      const opt=n=>`<option ${n===r.leader?"selected":""}>${esc(n)}</option>`;
+      return `<label>Supervisor / person leading the meeting<select data-f="leader" style="font-weight:600"><option value="">Select who leads the meeting</option><optgroup label="Supervisors">${N.map(opt).join("")}</optgroup>${C.length?`<optgroup label="Crew (from People)">${C.map(opt).join("")}</optgroup>`:""}</select></label>
+        ${r.leader&&!N.includes(r.leader)?`<div class="empty" style="margin-top:-6px">${esc(r.leader)} leads the meeting. A supervisor signs off at the end with <b>Complete</b>.</div>`:""}`})()}
   </section>
   <section class="card"><h2>Issues from previous day</h2>
     <div class="sev" role="group" aria-label="Any issues arising from previous day?"><button type="button" data-yn="yes" aria-pressed="${r.issues===true}">YES</button><button type="button" data-yn="no" aria-pressed="${r.issues===false}">NO</button></div>
@@ -937,13 +940,17 @@ function completeFlow(){
   const r=rec();
   if(r.completed_at){pdfSheet();return}
   if(!r.published_at){toast("Publish the day first, so workers can sign.");return}
-  if(!String(r.leader||"").trim()){toast("Choose the supervisor in Day details first");const f=document.querySelector("[data-f=leader]");if(f){f.scrollIntoView({block:"center",behavior:"smooth"});setTimeout(()=>f.focus(),400)}return}
+  if(!String(r.leader||"").trim()){toast("Choose who leads the meeting in Day details first");const f=document.querySelector("[data-f=leader]");if(f){f.scrollIntoView({block:"center",behavior:"smooth"});setTimeout(()=>f.focus(),400)}return}
+  /* If a crew member led the meeting, the logged-in supervisor signs off as person responsible. */
+  const isSup=sups.some(x=>x.name&&x.name===r.leader),signer=isSup?r.leader:myName();
+  if(!signer){setupSheet(false);toast("Enter your name first, then tap Complete again");return}
   const n=(sigs[cur]||[]).length;
   sheet("Complete pre-start",`<div class="empty">${n} ${n===1?"person has":"people have"} signed. Once you complete it, sign-ins close and the PDF is made.</div>
-    <div style="font-size:16px">Signing off as: <b>${esc(r.leader)}</b></div><div class="empty" style="margin-top:-8px">The supervisor chosen in Day details.</div>
+    ${isSup?"":`<div style="font-size:16px">Meeting led by: <b>${esc(r.leader)}</b></div>`}
+    <div style="font-size:16px">Signing off as: <b>${esc(signer)}</b></div><div class="empty" style="margin-top:-8px">${isSup?"The supervisor chosen in Day details.":"Site supervisor / person responsible (you)."}</div>
     <div><div class="empty" style="margin-bottom:6px">Your signature</div>${padHTML("cSig")}</div>
-    <label class="chk"><input type="checkbox" id="cMe" checked><span>Add ${esc(r.leader)} to the attendance with this signature (skipped if already signed)</span></label>`,"Complete and sign",async b=>{
-    const name=String(rec().leader||"").trim();
+    <label class="chk"><input type="checkbox" id="cMe" ${isSup?"checked":""}><span>Add ${esc(signer)} to the attendance with this signature (skipped if already signed)</span></label>`,"Complete and sign",async b=>{
+    const name=signer;
     if(pad.empty()){toast("Sign in the box with your finger");return false}
     const addMe=b.querySelector("#cMe").checked;
     if(!n&&!addMe&&!confirm("Nobody has signed yet. Complete anyway?"))return false;
